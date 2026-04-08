@@ -1,0 +1,25 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Test artifacts
+tests/fixtures/*/.domain-agents/
+tests/fixtures/*/agents/
+tests/fixtures/*/AGENTS.md
+tests/fixtures/*/.cursor/
+tests/fixtures/*/src/*/CLAUDE.md
+tests/fixtures/*/src/CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
