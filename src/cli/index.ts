@@ -3,8 +3,10 @@
 import { Command } from 'commander';
 import { resolve } from 'path';
 import { runDiscover } from './discover.js';
+import { runShow } from './show.js';
 import { runInit } from './init.js';
 import { runHealth } from './health.js';
+import { runSetup, resolveApiKey } from './setup.js';
 import { installClaudeHooks } from '../hooks/claude.js';
 import { installCursorRules } from '../hooks/cursor.js';
 
@@ -58,14 +60,59 @@ program
   });
 
 program
-  .command('init')
-  .description('Generate agent files and AGENTS.md from a discovery proposal')
+  .command('show')
+  .description('Display the discovery proposal in a visual format')
   .argument('[path]', 'Path to the project root', '.')
-  .action(async (path: string) => {
+  .option('--files', 'Show individual files in each domain')
+  .option('--coupling', 'Show coupling between domains')
+  .action(async (path: string, options: { files?: boolean; coupling?: boolean }) => {
     const rootPath = resolve(path);
 
     try {
-      const result = await runInit(rootPath);
+      await runShow(rootPath, options);
+    } catch (err) {
+      console.error((err as Error).message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('setup')
+  .description('Configure domain-agents (API key for LLM enrichment)')
+  .action(async () => {
+    try {
+      await runSetup();
+    } catch (err) {
+      console.error('Setup failed:', (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('init')
+  .description('Generate agent files and AGENTS.md from a discovery proposal')
+  .argument('[path]', 'Path to the project root', '.')
+  .option('--enrich', 'Use Claude to generate contextual domain descriptions (requires API key via setup or ANTHROPIC_API_KEY)')
+  .action(async (path: string, options: { enrich?: boolean }) => {
+    const rootPath = resolve(path);
+
+    if (options.enrich) {
+      const apiKey = await resolveApiKey();
+      if (!apiKey) {
+        console.error('Error: --enrich requires an Anthropic API key.');
+        console.error('Run "domain-agents setup" or set ANTHROPIC_API_KEY environment variable.');
+        process.exit(1);
+      }
+      // Make the key available to the Anthropic SDK
+      process.env.ANTHROPIC_API_KEY = apiKey;
+    }
+
+    try {
+      if (options.enrich) {
+        console.log('\nGenerating enriched agent files with Claude...\n');
+      }
+
+      const result = await runInit(rootPath, { enrich: options.enrich });
 
       console.log('\nGenerated files:\n');
       for (const file of result.agentFiles) {
@@ -133,7 +180,7 @@ const hooks = program
 
 hooks
   .command('claude')
-  .description('Generate CLAUDE.md files for automatic domain context in Claude Code')
+  .description('Configure MCP server for domain context in Claude Code')
   .argument('[path]', 'Path to the project root', '.')
   .action(async (path: string) => {
     const rootPath = resolve(path);
@@ -141,11 +188,13 @@ hooks
     try {
       const result = await installClaudeHooks(rootPath);
 
-      console.log('\nClaude Code integration installed:\n');
-      for (const file of result.claudeMdFiles) {
-        console.log(`  ✓ ${file}`);
-      }
-      console.log(`\nClaude Code will automatically load domain context when working in these directories.\n`);
+      console.log('\nClaude Code MCP server configured:\n');
+      console.log(`  ✓ ${result.settingsPath}`);
+      console.log(`\nClaude Code now has access to domain-agents tools:`);
+      console.log(`  - domain_lookup    Look up which domain a file belongs to`);
+      console.log(`  - list_domains     List all discovered domains`);
+      console.log(`  - domain_context   Get full agent context for a domain`);
+      console.log(`  - domain_files     List files in a domain\n`);
     } catch (err) {
       console.error('Hook installation failed:', (err as Error).message);
       process.exit(1);

@@ -4,14 +4,21 @@
   "description": "Discover business domains in codebases and generate AI agent files for evolutionary architecture",
   "main": "dist/index.js",
   "bin": {
-    "domain-agents": "dist/cli/index.js"
+    "domain-agents": "dist/cli/index.js",
+    "domain-agents-mcp": "dist/mcp/server.js"
   },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": ["ai", "agents", "architecture", "domains", "evolutionary"],
+  "keywords": [
+    "ai",
+    "agents",
+    "architecture",
+    "domains",
+    "evolutionary"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",
@@ -21,6 +28,9 @@
     "vitest": "^4.1.3"
   },
   "dependencies": {
-    "commander": "^14.0.3"
+    "@anthropic-ai/sdk": "^0.86.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^14.0.3",
+    "zod": "^4.3.6"
   }
 }

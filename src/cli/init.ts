@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { generateAgentFile } from '../generator/agent-file.js';
 import { generateAgentsMd } from '../generator/agents-md.js';
+import { enrichDomain, generateEnrichedAgentFile, createClient } from '../generator/enrich.js';
 import type { DiscoveryResult } from '../types.js';
 
 export interface InitResult {
@@ -9,7 +10,7 @@ export interface InitResult {
   agentFiles: string[];
 }
 
-export async function runInit(rootPath: string): Promise<InitResult> {
+export async function runInit(rootPath: string, options: { enrich?: boolean } = {}): Promise<InitResult> {
   const proposalPath = join(rootPath, '.domain-agents', 'proposal.json');
 
   let proposalData: string;
@@ -42,8 +43,25 @@ export async function runInit(rootPath: string): Promise<InitResult> {
 
   // Generate individual agent files
   const agentFiles: string[] = [];
+  const client = options.enrich ? createClient() : null;
+
   for (const domain of proposal.domains) {
-    const content = generateAgentFile(domain);
+    let content: string;
+
+    if (client) {
+      try {
+        process.stdout.write(`  Enriching ${domain.name}...`);
+        const enriched = await enrichDomain(client, domain, rootPath);
+        content = generateEnrichedAgentFile(domain, enriched);
+        process.stdout.write(` done\n`);
+      } catch (err) {
+        process.stdout.write(` failed (${(err as Error).message}), using static template\n`);
+        content = generateAgentFile(domain);
+      }
+    } else {
+      content = generateAgentFile(domain);
+    }
+
     const filePath = join(agentsDir, `${domain.name}.md`);
     await writeFile(filePath, content, 'utf-8');
     agentFiles.push(filePath);

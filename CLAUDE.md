@@ -21,12 +21,16 @@ src/
     agents-md.ts           Generates AGENTS.md system map with dependency graph and cross-domain contracts
   hooks/
     lookup.ts              File-to-domain lookup from proposal.json (powers all integrations)
-    claude.ts              Generates CLAUDE.md files per domain directory for Claude Code
     cursor.ts              Generates .cursor/rules/*.mdc files with glob-based activation for Cursor
+  mcp/
+    server.ts              MCP server: exposes domain_lookup, list_domains, domain_context, domain_files tools
+  generator/
+    enrich.ts              LLM enrichment: reads domain code, calls Claude to generate contextual agent files
   cli/
-    index.ts               CLI entry point (commander): discover, init, health, hooks commands
+    index.ts               CLI entry point (commander): discover, init, setup, health, hooks commands
     discover.ts            Runs discovery engine, saves proposal.json
-    init.ts                Reads proposal, generates agents/*.md + AGENTS.md
+    init.ts                Reads proposal, generates agents/*.md + AGENTS.md (with optional --enrich)
+    setup.ts               Saves Anthropic API key to ~/.config/domain-agents/config.json
     health.ts              Checks boundaries, coupling, staleness against current codebase state
 ```
 

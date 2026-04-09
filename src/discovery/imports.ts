@@ -1,38 +1,75 @@
 import ts from 'typescript';
-import { readFile, readdir, stat } from 'fs/promises';
-import { join, relative, resolve, dirname, extname } from 'path';
+import { readFile } from 'fs/promises';
+import { join, relative, resolve, dirname } from 'path';
 import type { ImportGraph, FileNode, ImportStatement, ExportedSymbol, ImportEdge } from '../types.js';
+import { findTsFiles, findSrcRoot } from './files.js';
 
-async function findTsFiles(dir: string): Promise<string[]> {
-  const results: string[] = [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== 'dist') {
-      results.push(...await findTsFiles(fullPath));
-    } else if (entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
-      results.push(fullPath);
-    }
-  }
-  return results;
+/** Path alias entries parsed from tsconfig.json */
+interface PathAlias {
+  prefix: string;
+  replacement: string;
 }
 
-async function findSrcRoot(rootPath: string): Promise<string> {
+async function loadPathAliases(rootPath: string): Promise<PathAlias[]> {
+  const aliases: PathAlias[] = [];
   try {
-    const srcPath = join(rootPath, 'src');
-    const s = await stat(srcPath);
-    if (s.isDirectory()) return srcPath;
+    const tsconfigPath = join(rootPath, 'tsconfig.json');
+    const raw = await readFile(tsconfigPath, 'utf-8');
+    // Use TypeScript's own parser which handles comments, trailing commas, etc.
+    const parsed = ts.parseConfigFileTextToJson(tsconfigPath, raw);
+    if (parsed.error) return aliases;
+
+    const config = parsed.config;
+    const paths = config?.compilerOptions?.paths;
+    if (!paths) return aliases;
+
+    const baseUrl = config?.compilerOptions?.baseUrl || '.';
+    const baseDir = resolve(rootPath, baseUrl);
+
+    for (const [pattern, targets] of Object.entries(paths)) {
+      if (!Array.isArray(targets) || targets.length === 0) continue;
+      const target = targets[0] as string;
+      // Convert glob patterns: "@/*" → prefix "@/", target "./*" → baseDir + "/"
+      const prefix = pattern.replace(/\*$/, '');
+      // Skip bare wildcard pattern ("*") — it would match all external packages
+      if (prefix === '') continue;
+      const replacement = resolve(baseDir, target.replace(/\*$/, ''));
+      aliases.push({ prefix, replacement });
+    }
   } catch {
-    // no src/ directory
+    // No tsconfig or can't parse — that's fine
   }
-  return rootPath;
+  // Sort by prefix length descending so longer prefixes match first
+  aliases.sort((a, b) => b.prefix.length - a.prefix.length);
+  return aliases;
 }
 
-function resolveImportPath(importSource: string, fromFile: string, allFiles: string[]): string | null {
-  if (!importSource.startsWith('.')) return null;
+function resolveImportPath(
+  importSource: string,
+  fromFile: string,
+  allFiles: string[],
+  pathAliases: PathAlias[],
+): string | null {
+  let resolved: string;
 
-  const fromDir = dirname(fromFile);
-  let resolved = resolve(fromDir, importSource);
+  if (importSource.startsWith('.')) {
+    // Relative import
+    const fromDir = dirname(fromFile);
+    resolved = resolve(fromDir, importSource);
+  } else {
+    // Try path aliases
+    let aliasResolved = false;
+    resolved = '';
+    for (const alias of pathAliases) {
+      if (importSource.startsWith(alias.prefix)) {
+        const remainder = importSource.slice(alias.prefix.length);
+        resolved = join(alias.replacement, remainder);
+        aliasResolved = true;
+        break;
+      }
+    }
+    if (!aliasResolved) return null; // External package
+  }
 
   // Strip .js extension (TS files use .js in imports for Node16 resolution)
   if (resolved.endsWith('.js')) {
@@ -134,7 +171,8 @@ function extractImports(sourceFile: ts.SourceFile): ImportStatement[] {
 
 export async function buildImportGraph(rootPath: string): Promise<ImportGraph> {
   const srcRoot = await findSrcRoot(rootPath);
-  const allFiles = await findTsFiles(srcRoot);
+  const allFiles = await findTsFiles(rootPath);
+  const pathAliases = await loadPathAliases(rootPath);
 
   const nodes: FileNode[] = [];
   const edges: ImportEdge[] = [];
@@ -154,7 +192,7 @@ export async function buildImportGraph(rootPath: string): Promise<ImportGraph> {
 
     // Resolve import paths
     for (const imp of fileImports) {
-      imp.resolvedPath = resolveImportPath(imp.source, filePath, allFiles);
+      imp.resolvedPath = resolveImportPath(imp.source, filePath, allFiles, pathAliases);
     }
 
     nodes.push({

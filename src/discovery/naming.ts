@@ -1,31 +1,8 @@
-import { readdir, stat } from 'fs/promises';
-import { join, relative, basename, dirname } from 'path';
+import { relative, basename } from 'path';
 import type { NamingAnalysis, NamingGroup } from '../types.js';
+import { findTsFiles, findSrcRoot } from './files.js';
 
 const FRAMEWORK_SUFFIXES = ['controller', 'service', 'model', 'repository', 'routes', 'middleware', 'handler', 'guard', 'pipe', 'interceptor', 'module', 'resolver', 'gateway'];
-
-async function findTsFiles(dir: string): Promise<string[]> {
-  const results: string[] = [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== 'dist') {
-      results.push(...await findTsFiles(fullPath));
-    } else if (entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
-      results.push(fullPath);
-    }
-  }
-  return results;
-}
-
-async function findSrcRoot(rootPath: string): Promise<string> {
-  try {
-    const srcPath = join(rootPath, 'src');
-    const s = await stat(srcPath);
-    if (s.isDirectory()) return srcPath;
-  } catch {}
-  return rootPath;
-}
 
 function extractDomainPrefix(fileName: string): string | null {
   // Remove extension
@@ -58,7 +35,7 @@ function extractContainsPattern(fileName: string): string | null {
 
 export async function analyzeNaming(rootPath: string): Promise<NamingAnalysis> {
   const srcRoot = await findSrcRoot(rootPath);
-  const allFiles = await findTsFiles(srcRoot);
+  const allFiles = await findTsFiles(rootPath);
 
   const prefixGroups = new Map<string, string[]>();
   const suffixGroups = new Map<string, string[]>();

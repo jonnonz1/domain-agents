@@ -14,7 +14,7 @@ The traditional answer is "rewrite it properly." The better answer is **evolutio
 
 1. **Agent files** (`agents/<domain>.md`) — per-domain context including interfaces, tech debt, observability specs, and scaling paths
 2. **System map** (`AGENTS.md`) — the dependency graph, cross-domain contracts, and architecture rules
-3. **Editor hooks** — automatic domain context loading for Claude Code and Cursor
+3. **MCP server** — Claude Code and other AI tools can query domain context on demand
 
 Each domain agent tracks:
 - **Interfaces** — what it exposes, what it consumes, who depends on it
@@ -30,16 +30,65 @@ npm install -g domain-agents
 # 1. Discover domains in your codebase
 domain-agents discover ./my-app
 
-# 2. Review the proposal at .domain-agents/proposal.json, then generate files
+# 2. Review the proposal, then generate agent files
 domain-agents init ./my-app
 
-# 3. Install editor integration
-domain-agents hooks claude ./my-app    # CLAUDE.md per domain directory
-domain-agents hooks cursor ./my-app    # .cursor/rules per domain
+# 3. (Optional) Use Claude to enrich agent files with real code analysis
+domain-agents setup                       # save your Anthropic API key
+domain-agents init ./my-app --enrich      # generates contextual descriptions
 
-# 4. Check domain health over time
+# 4. Connect to Claude Code via MCP
+claude mcp add domain-agents -- domain-agents-mcp /path/to/my-app
+
+# 5. Check domain health over time
 domain-agents health ./my-app
 ```
+
+## MCP Server (Claude Code Integration)
+
+The MCP server gives Claude Code live access to domain context — no generated files to maintain.
+
+```bash
+# Add the MCP server to your project
+claude mcp add domain-agents -- domain-agents-mcp /path/to/my-app
+```
+
+This exposes 4 tools to Claude Code:
+
+| Tool | What it does |
+|------|-------------|
+| `domain_lookup` | Look up which domain a file belongs to, returns full agent context |
+| `list_domains` | List all discovered domains with file counts and confidence |
+| `domain_context` | Get the full agent file for a specific domain |
+| `domain_files` | List all files belonging to a domain |
+
+Claude Code will use these automatically when working in your codebase — asking "what domain does this file belong to?" or getting context before making changes.
+
+### Cursor Integration
+
+```bash
+domain-agents hooks cursor ./my-app
+```
+
+Generates `.cursor/rules/<domain>.mdc` files with glob-based activation. Cursor automatically loads the relevant domain rules when editing matching files.
+
+## LLM-Enriched Agent Files
+
+With `--enrich`, the tool reads key files from each domain and uses Claude to generate contextual descriptions instead of generic templates:
+
+```bash
+domain-agents setup                       # one-time: save your API key
+domain-agents init ./my-app --enrich
+```
+
+This produces agent files with:
+- **Real purpose descriptions** based on actual code ("Manages journal entries with double-entry bookkeeping, multi-entity transfers, and GST calculations")
+- **Accurate scaling stage** detection (finds queue usage, async patterns, etc.)
+- **Specific tech debt** from code analysis, not generic checklists
+- **Business domain rules** extracted from validation logic and invariants
+- **Observability gaps** based on what's instrumented vs what's missing
+
+The API key is stored at `~/.config/domain-agents/config.json` — never in the project.
 
 ## What It Detects
 
@@ -70,64 +119,18 @@ routes/auth.routes.ts           │
 middleware/auth.middleware.ts    ┘
 ```
 
-**Mixed** (the real-world case):
+**Mixed / Next.js** (the real-world case):
 ```
-src/auth/           → auth (99% confidence, clean directory)
-services/payment.ts → payment (74%, merged with stripe-client + invoice)
-api/admin-handler   → unassigned (coupling hotspot, imports 3+ domains)
+lib/services/journal/       ┐
+components/journals/        ├→ journals domain (52 files)
+hooks/use-manual-journals   │
+app/api/journals/           ┘
+
+lib/services/bank-accounts/ ┐
+components/bank-accounts/   ├→ bank-accounts domain (59 files)
+hooks/use-bank-*            │
+app/api/bank-accounts/      ┘
 ```
-
-## Generated Agent File
-
-Each domain gets an agent file with structured sections:
-
-```markdown
-# Billing Agent
-
-## Purpose
-What this domain does in business terms.
-
-## Ownership
-Files, routes, config owned by this domain.
-
-## Interfaces
-### Exposed (other domains call these)
-### Consumed (this domain calls these)
-
-## Scaling Stage
-Current: Inline → Evolution path to async → queued → service
-
-## Technical Debt
-- [ ] Known issues that inform feature development
-
-## Observability
-### Current Metrics
-### Gaps — what data is missing for scaling decisions
-### Scaling Triggers — metric thresholds that signal evolution
-
-## Domain Rules
-## Context for AI Agents
-```
-
-## Editor Integration
-
-### Claude Code
-
-```bash
-domain-agents hooks claude ./my-app
-```
-
-Generates `CLAUDE.md` in each domain's directory. Claude Code automatically reads these when working in that directory — the right agent context is always present without manual intervention.
-
-For layer-organized codebases (where domains span directories), generates a single `src/CLAUDE.md` with file-to-domain mapping.
-
-### Cursor
-
-```bash
-domain-agents hooks cursor ./my-app
-```
-
-Generates `.cursor/rules/<domain>.mdc` files with glob-based activation. Cursor automatically loads the relevant domain rules when editing matching files.
 
 ## Health Checks
 
@@ -141,21 +144,32 @@ Detects:
 - **Boundary violations** — cross-domain imports that bypass interfaces
 - **Stale agent files** — domains that have changed since last discovery
 
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `domain-agents discover <path>` | Analyze codebase and propose domains |
+| `domain-agents show <path>` | Visual overview of the proposal |
+| `domain-agents init <path> [--enrich]` | Generate agent files and AGENTS.md |
+| `domain-agents setup` | Configure API key for LLM enrichment |
+| `domain-agents health <path>` | Check domain boundaries and staleness |
+| `domain-agents hooks cursor <path>` | Generate Cursor rule files |
+
 ## Key Design Principles
 
-**Observability is the most important input.** Agent files have a strong preference for gathering data. Scaling decisions should be driven by metrics, not speculation. Every new code path is an opportunity to add instrumentation.
+**Observability is the most important input.** Agent files have a strong preference for gathering data. Scaling decisions should be driven by metrics, not speculation.
 
-**Tech debt informs feature consensus.** When a feature spans multiple domains, each domain's tech debt register is consulted. If the email domain has no retry logic and the feature increases email volume, the agent surfaces this during planning.
+**Tech debt informs feature consensus.** When a feature spans multiple domains, each domain's tech debt register is consulted.
 
-**Start consolidated, split when needed.** You don't need a domain agent per micro-concern from day one. Start with broad agents covering multiple areas. Split when a domain gets complex enough to warrant its own context.
+**Start consolidated, split when needed.** You don't need a domain agent per micro-concern from day one. Start with broad agents covering multiple areas.
 
-**The operator resolves conflicts.** Agents own their domains, but cross-domain decisions are surfaced for human judgment — like an engineering manager resolving disagreements between teams.
+**The operator resolves conflicts.** Agents own their domains, but cross-domain decisions are surfaced for human judgment.
 
 ## Development
 
 ```bash
 npm install
-npm test            # Run all 146 tests
+npm test            # Run all 170 tests
 npm run test:watch  # Watch mode
 npm run build       # TypeScript compilation
 ```

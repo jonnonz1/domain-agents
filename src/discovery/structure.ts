@@ -1,6 +1,6 @@
-import { readdir, stat } from 'fs/promises';
-import { join, relative } from 'path';
+import { relative } from 'path';
 import type { StructureAnalysis } from '../types.js';
+import { findTsFiles, findSrcRoot } from './files.js';
 
 const LAYER_NAMES = new Set([
   'controllers', 'controller',
@@ -19,31 +19,6 @@ const LAYER_NAMES = new Set([
   'validators', 'validation',
 ]);
 
-async function findTsFiles(dir: string): Promise<string[]> {
-  const results: string[] = [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== 'dist') {
-      results.push(...await findTsFiles(fullPath));
-    } else if (entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
-      results.push(fullPath);
-    }
-  }
-  return results;
-}
-
-async function findSrcRoot(rootPath: string): Promise<string> {
-  try {
-    const srcPath = join(rootPath, 'src');
-    const s = await stat(srcPath);
-    if (s.isDirectory()) return srcPath;
-  } catch {
-    // no src/ directory
-  }
-  return rootPath;
-}
-
 function detectPattern(topLevelDirs: string[]): StructureAnalysis['pattern'] {
   if (topLevelDirs.length === 0) return 'flat';
 
@@ -58,7 +33,7 @@ function detectPattern(topLevelDirs: string[]): StructureAnalysis['pattern'] {
 
 export async function analyzeStructure(rootPath: string): Promise<StructureAnalysis> {
   const srcRoot = await findSrcRoot(rootPath);
-  const allFiles = await findTsFiles(srcRoot);
+  const allFiles = await findTsFiles(rootPath);
 
   const filesByDirectory: Record<string, string[]> = {};
   const topLevelDirSet = new Set<string>();
