@@ -188,13 +188,13 @@ hooks
     try {
       const result = await installClaudeHooks(rootPath);
 
-      console.log('\nClaude Code MCP server configured:\n');
-      console.log(`  ✓ ${result.settingsPath}`);
-      console.log(`\nClaude Code now has access to domain-agents tools:`);
-      console.log(`  - domain_lookup    Look up which domain a file belongs to`);
-      console.log(`  - list_domains     List all discovered domains`);
-      console.log(`  - domain_context   Get full agent context for a domain`);
-      console.log(`  - domain_files     List files in a domain\n`);
+      console.log('\nClaude Code integration installed:\n');
+      console.log(`  ✓ ${result.settingsPath}  (MCP server + SessionStart hook)`);
+      console.log(`  ✓ ${result.rulesPath}  (domain-aware rules)`);
+      console.log(`\nClaude Code will now:`);
+      console.log(`  1. Load domain summary at session start`);
+      console.log(`  2. Follow domain rules when editing files`);
+      console.log(`  3. Have access to domain_lookup, domain_context, domain_files, list_domains tools\n`);
     } catch (err) {
       console.error('Hook installation failed:', (err as Error).message);
       process.exit(1);

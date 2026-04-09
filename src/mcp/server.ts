@@ -175,9 +175,29 @@ function startServer(rootPath: string) {
   return server;
 }
 
-// Main: resolve root path from args or cwd
-const rootPath = process.argv[2] || process.cwd();
+// Main: resolve root path from args, support --list-domains for hook usage
+const args = process.argv.slice(2);
+const listDomainsFlag = args.includes('--list-domains');
+const rootPath = args.find(a => !a.startsWith('--')) || process.cwd();
 
-const server = startServer(rootPath);
-const transport = new StdioServerTransport();
-server.connect(transport);
+if (listDomainsFlag) {
+  // CLI mode: print domain summary to stdout for SessionStart hooks
+  loadProposal(rootPath).then(proposal => {
+    console.log(`This codebase has ${proposal.domains.length} business domains. Use the domain-agents MCP tools (domain_lookup, domain_context, domain_files, list_domains) to get domain context before making changes.`);
+    console.log('');
+    console.log('Top domains:');
+    for (const d of proposal.domains.slice(0, 15)) {
+      console.log(`  ${d.name.padEnd(22)} ${String(d.files.length).padStart(3)} files  ${Math.round(d.confidence * 100)}% confidence`);
+    }
+    if (proposal.domains.length > 15) {
+      console.log(`  ... and ${proposal.domains.length - 15} more`);
+    }
+  }).catch(() => {
+    // No proposal yet — silently skip
+  });
+} else {
+  // MCP server mode
+  const server = startServer(rootPath);
+  const transport = new StdioServerTransport();
+  server.connect(transport);
+}
