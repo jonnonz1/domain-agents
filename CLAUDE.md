@@ -22,6 +22,7 @@ src/
   hooks/
     lookup.ts              File-to-domain lookup from proposal.json (powers all integrations)
     cursor.ts              Generates .cursor/rules/*.mdc files with glob-based activation for Cursor
+    claude.ts              Generates .claude/rules/domain-*.md files with glob activation + MCP server + SessionStart hook
   mcp/
     server.ts              MCP server: exposes domain_lookup, list_domains, domain_context, domain_files tools
   generator/

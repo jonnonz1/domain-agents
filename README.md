@@ -42,34 +42,31 @@ domain-agents init ./my-app
 domain-agents setup                       # save your Anthropic API key
 domain-agents init ./my-app --enrich      # generates contextual descriptions
 
-# 4. Connect to Claude Code via MCP
-claude mcp add domain-agents -- domain-agents-mcp /path/to/my-app
+# 4. Connect to your AI tools
+domain-agents hooks claude ./my-app    # Claude Code: auto-activating rules + MCP server
+domain-agents hooks cursor ./my-app    # Cursor: glob-activated .mdc rules
 
 # 5. Check domain health over time
 domain-agents health ./my-app
 ```
 
-## MCP Server (Claude Code Integration)
+## AI Tool Integration
 
-The MCP server gives Claude Code live access to domain context — no generated files to maintain.
+### Claude Code
 
 ```bash
-# Add the MCP server to your project
-claude mcp add domain-agents -- domain-agents-mcp /path/to/my-app
+domain-agents hooks claude ./my-app
 ```
 
-This exposes 4 tools to Claude Code:
+This installs three layers of integration:
 
-| Tool | What it does |
-|------|-------------|
-| `domain_lookup` | Look up which domain a file belongs to, returns full agent context |
-| `list_domains` | List all discovered domains with file counts and confidence |
-| `domain_context` | Get the full agent file for a specific domain |
-| `domain_files` | List all files belonging to a domain |
+1. **Per-domain rule files** (`.claude/rules/domain-<name>.md`) — each has `globs:` frontmatter so Claude Code **auto-activates the domain context** when you edit files in that domain. Cross-domain dependencies are listed with instructions to consult related domains via MCP.
+2. **MCP server** — 4 tools (`domain_lookup`, `domain_context`, `domain_files`, `list_domains`) for on-demand domain queries
+3. **SessionStart hook** — prints a domain summary at the start of each session
 
-Claude Code will use these automatically when working in your codebase — asking "what domain does this file belong to?" or getting context before making changes.
+When you say "add a new email service", Claude Code sees you editing email domain files, auto-loads the email agent context, sees it depends on `users` and `permissions`, and consults those domains too — seamlessly.
 
-### Cursor Integration
+### Cursor
 
 ```bash
 domain-agents hooks cursor ./my-app
@@ -194,6 +191,7 @@ jobs:
 | `domain-agents init <path> [--enrich]` | Generate agent files and AGENTS.md |
 | `domain-agents setup` | Configure API key for LLM enrichment |
 | `domain-agents health <path> [--ci] [--json]` | Check domain boundaries and staleness |
+| `domain-agents hooks claude <path>` | Install Claude Code integration (auto-activating rules + MCP) |
 | `domain-agents hooks cursor <path>` | Generate Cursor rule files |
 
 ## Key Design Principles
@@ -210,7 +208,7 @@ jobs:
 
 ```bash
 npm install
-npm test            # Run all 170 tests
+npm test            # Run all 180 tests
 npm run test:watch  # Watch mode
 npm run build       # TypeScript compilation
 ```

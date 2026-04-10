@@ -1,10 +1,12 @@
 import { readFile, writeFile, mkdir, stat } from 'fs/promises';
 import { join, resolve } from 'path';
+import { createLookup } from './lookup.js';
 import type { DomainProposal } from '../types.js';
 
 export interface ClaudeHooksResult {
   settingsPath: string;
   rulesPath: string;
+  domainRuleFiles: string[];
   hookScript: string;
 }
 
@@ -42,7 +44,7 @@ export async function installClaudeHooks(rootPath: string): Promise<ClaudeHooksR
   const claudeDir = await findClaudeDir(rootPath);
   const settingsPath = join(claudeDir, 'settings.json');
 
-  // --- 1. Configure MCP server with instructions in settings.json ---
+  // --- 1. Configure MCP server in settings.json ---
 
   let settings: Record<string, any> = {};
   try {
@@ -63,12 +65,10 @@ export async function installClaudeHooks(rootPath: string): Promise<ClaudeHooksR
   if (!settings.hooks) settings.hooks = {};
   if (!settings.hooks.SessionStart) settings.hooks.SessionStart = [];
 
-  // Remove any existing domain-agents hook
   settings.hooks.SessionStart = settings.hooks.SessionStart.filter(
     (h: any) => !h.hooks?.some((hh: any) => hh.command?.includes('domain-agents-mcp'))
   );
 
-  // Add the hook — runs the MCP binary's list_domains at session start
   settings.hooks.SessionStart.push({
     hooks: [{
       type: 'command',
@@ -79,7 +79,7 @@ export async function installClaudeHooks(rootPath: string): Promise<ClaudeHooksR
   await mkdir(claudeDir, { recursive: true });
   await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
 
-  // --- 3. Create .claude/rules/domain-agents.md ---
+  // --- 3. Create .claude/rules/domain-agents.md (global rules) ---
 
   const rulesDir = join(claudeDir, 'rules');
   await mkdir(rulesDir, { recursive: true });
@@ -92,24 +92,14 @@ export async function installClaudeHooks(rootPath: string): Promise<ClaudeHooksR
 
   const rulesContent = `# Domain Architecture
 
-This codebase has ${proposal.domains.length} discovered business domains. Domain agent files are in \`agents/<domain>.md\`.
+This codebase has ${proposal.domains.length} discovered business domains. Per-domain rules auto-activate when you edit files in each domain.
 
 ## MCP Tools Available
 
-Use the \`domain-agents\` MCP tools during implementation:
-
-- **domain_lookup(file_path)** — Before editing a file, look up its domain to understand the context, rules, and interfaces
-- **domain_context(domain_name)** — Get the full agent file for a domain including purpose, tech debt, domain rules, and scaling stage
-- **domain_files(domain_name)** — List all files in a domain to understand the full scope of changes
+- **domain_context(domain_name)** — Full agent file for a domain (purpose, tech debt, rules, scaling stage)
+- **domain_files(domain_name)** — List all files in a domain
+- **domain_lookup(file_path)** — Look up which domain a file belongs to
 - **list_domains** — See all domains in the system
-
-## Implementation Workflow
-
-1. Before starting work, call \`domain_lookup\` on the files you'll modify to understand which domains are involved
-2. Read the domain rules and tech debt from the agent context — these inform implementation choices
-3. When changes cross domain boundaries, check both domains' interface contracts
-4. Preserve existing interface signatures — implementations can change, contracts must be stable
-5. Note any new tech debt or observability gaps introduced by your changes
 
 ## Key Domains
 
@@ -118,8 +108,66 @@ ${domainList}
 
   await writeFile(rulesPath, rulesContent, 'utf-8');
 
-  // --- 4. Create the --list-domains hook script support in MCP server ---
-  // (handled by the MCP server binary itself)
+  // --- 4. Generate per-domain rule files with glob activation ---
 
-  return { settingsPath, rulesPath, hookScript: 'SessionStart hook configured' };
+  const lookup = await createLookup(rootPath);
+  const domainRuleFiles = await generateDomainRules(lookup, proposal.domains, rulesDir);
+
+  return { settingsPath, rulesPath, domainRuleFiles, hookScript: 'SessionStart hook configured' };
+}
+
+/**
+ * Generate a .claude/rules/domain-<name>.md file per domain with glob-based activation.
+ * When Claude Code edits a file matching the globs, the domain context auto-loads.
+ */
+async function generateDomainRules(
+  lookup: ReturnType<typeof createLookup> extends Promise<infer T> ? T : never,
+  domains: DomainProposal[],
+  rulesDir: string,
+): Promise<string[]> {
+  const ruleFiles: string[] = [];
+
+  for (const domain of domains) {
+    const globs = lookup.getGlobPatterns(domain.name);
+    if (!globs || globs.length === 0) continue;
+
+    const context = lookup.getAgentContext(domain.name);
+    if (!context) continue;
+
+    const consumedDomains = Object.keys(domain.coupling).filter(d => domain.coupling[d] > 0);
+
+    const sections: string[] = [];
+
+    // Frontmatter with globs for auto-activation
+    sections.push('---');
+    sections.push(`description: ${domain.name} domain — auto-activates when editing files in this domain`);
+    sections.push('globs:');
+    for (const g of globs) {
+      sections.push(`  - ${g}`);
+    }
+    sections.push('---');
+    sections.push('');
+
+    // Agent context
+    sections.push(context);
+
+    // Cross-domain instructions
+    if (consumedDomains.length > 0) {
+      sections.push('## Cross-Domain Dependencies');
+      sections.push('');
+      sections.push('This domain depends on the following domains. Use `domain_context` to load their rules before making changes that cross boundaries:');
+      sections.push('');
+      for (const dep of consumedDomains) {
+        const score = domain.coupling[dep];
+        sections.push(`- **${dep}** (coupling: ${score.toFixed(2)}) — run \`domain_context("${dep}")\``);
+      }
+      sections.push('');
+    }
+
+    const filePath = join(rulesDir, `domain-${domain.name}.md`);
+    await writeFile(filePath, sections.join('\n'), 'utf-8');
+    ruleFiles.push(filePath);
+  }
+
+  return ruleFiles;
 }

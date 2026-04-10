@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installClaudeHooks } from '../../src/hooks/claude.js';
 import { runDiscover } from '../../src/cli/discover.js';
 import { resolve, join } from 'path';
-import { mkdtemp, rm, cp, readFile, writeFile, mkdir } from 'fs/promises';
+import { mkdtemp, rm, cp, readFile, writeFile, mkdir, readdir } from 'fs/promises';
 import { tmpdir } from 'os';
 
 const FIXTURES = resolve(import.meta.dirname, '../fixtures');
@@ -47,9 +47,7 @@ describe('Claude Code Hook Integration', () => {
 
       const rules = await readFile(result.rulesPath, 'utf-8');
       expect(rules).toContain('Domain Architecture');
-      expect(rules).toContain('domain_lookup');
       expect(rules).toContain('domain_context');
-      expect(rules).toContain('Implementation Workflow');
     });
 
     it('rules file lists key domains', async () => {
@@ -90,6 +88,81 @@ describe('Claude Code Hook Integration', () => {
     });
   });
 
+  describe('per-domain rule files', () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await mkdtemp(join(tmpdir(), 'domain-agents-claude-'));
+      await cp(resolve(FIXTURES, 'feature-organized'), tempDir, { recursive: true });
+      await runDiscover(tempDir);
+    });
+
+    afterEach(async () => {
+      await rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('generates per-domain rule files', async () => {
+      const result = await installClaudeHooks(tempDir);
+
+      expect(result.domainRuleFiles.length).toBeGreaterThanOrEqual(4);
+      expect(result.domainRuleFiles.every(f => f.endsWith('.md'))).toBe(true);
+    });
+
+    it('creates domain-<name>.md files in .claude/rules/', async () => {
+      await installClaudeHooks(tempDir);
+
+      const entries = await readdir(join(tempDir, '.claude', 'rules'));
+      expect(entries).toContain('domain-auth.md');
+      expect(entries).toContain('domain-billing.md');
+      expect(entries).toContain('domain-email.md');
+      expect(entries).toContain('domain-users.md');
+    });
+
+    it('rule files have frontmatter with glob patterns', async () => {
+      await installClaudeHooks(tempDir);
+
+      const authRule = await readFile(join(tempDir, '.claude', 'rules', 'domain-auth.md'), 'utf-8');
+      expect(authRule).toMatch(/^---\n/);
+      expect(authRule).toContain('globs:');
+      expect(authRule).toContain('auth');
+    });
+
+    it('rule files contain domain agent context', async () => {
+      await installClaudeHooks(tempDir);
+
+      const billingRule = await readFile(join(tempDir, '.claude', 'rules', 'domain-billing.md'), 'utf-8');
+      expect(billingRule).toContain('Billing');
+      expect(billingRule).toContain('Interfaces');
+      expect(billingRule).toContain('Technical Debt');
+    });
+
+    it('rule files include cross-domain dependency instructions', async () => {
+      await installClaudeHooks(tempDir);
+
+      // Find a domain that has coupling to other domains
+      const ruleFiles = await readdir(join(tempDir, '.claude', 'rules'));
+      const domainFiles = ruleFiles.filter(f => f.startsWith('domain-'));
+
+      let foundCrossDomain = false;
+      for (const file of domainFiles) {
+        const content = await readFile(join(tempDir, '.claude', 'rules', file), 'utf-8');
+        if (content.includes('Cross-Domain Dependencies')) {
+          foundCrossDomain = true;
+          expect(content).toContain('domain_context');
+          break;
+        }
+      }
+      expect(foundCrossDomain).toBe(true);
+    });
+
+    it('frontmatter description mentions auto-activation', async () => {
+      await installClaudeHooks(tempDir);
+
+      const authRule = await readFile(join(tempDir, '.claude', 'rules', 'domain-auth.md'), 'utf-8');
+      expect(authRule).toContain('auto-activates');
+    });
+  });
+
   describe('monorepo support', () => {
     it('finds .claude dir by walking up from nested project', async () => {
       const parent = await mkdtemp(join(tmpdir(), 'domain-agents-parent-'));
@@ -103,6 +176,7 @@ describe('Claude Code Hook Integration', () => {
 
       expect(result.settingsPath).toBe(join(parent, '.claude', 'settings.json'));
       expect(result.rulesPath).toBe(join(parent, '.claude', 'rules', 'domain-agents.md'));
+      expect(result.domainRuleFiles.length).toBeGreaterThanOrEqual(1);
 
       await rm(parent, { recursive: true, force: true });
     });

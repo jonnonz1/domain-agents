@@ -204,11 +204,12 @@ hooks
 
       console.log('\nClaude Code integration installed:\n');
       console.log(`  ✓ ${result.settingsPath}  (MCP server + SessionStart hook)`);
-      console.log(`  ✓ ${result.rulesPath}  (domain-aware rules)`);
+      console.log(`  ✓ ${result.rulesPath}  (global domain rules)`);
+      console.log(`  ✓ ${result.domainRuleFiles.length} per-domain rule files  (auto-activate on file edit)`);
       console.log(`\nClaude Code will now:`);
-      console.log(`  1. Load domain summary at session start`);
-      console.log(`  2. Follow domain rules when editing files`);
-      console.log(`  3. Have access to domain_lookup, domain_context, domain_files, list_domains tools\n`);
+      console.log(`  1. Auto-load domain context when you edit files in any domain`);
+      console.log(`  2. Show cross-domain dependencies and prompt you to consult related domains`);
+      console.log(`  3. Have MCP tools: domain_lookup, domain_context, domain_files, list_domains\n`);
     } catch (err) {
       console.error('Hook installation failed:', (err as Error).message);
       process.exit(1);
