@@ -1,5 +1,10 @@
 # domain-agents
 
+[![npm version](https://img.shields.io/npm/v/domain-agents.svg)](https://www.npmjs.com/package/domain-agents)
+[![CI](https://github.com/jonnonz1/domain-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/jonnonz1/domain-agents/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Provenance](https://img.shields.io/badge/npm-provenance-blue)](https://docs.npmjs.com/generating-provenance-statements)
+
 A CLI tool that discovers business domains in TypeScript/Node codebases and generates AI agent files for evolutionary architecture.
 
 ## The Problem
@@ -181,6 +186,60 @@ Three realistic TypeScript codebases in `tests/fixtures/`:
 - `layer-organized/` — 20 files, traditional MVC Express app
 - `mixed/` — 17 files, real-world messy codebase with coupling hotspots
 
+## Releasing
+
+This package publishes to npm via GitHub Actions using **npm Trusted Publishing (OIDC)** — no `NPM_TOKEN` secret is stored anywhere. Every published tarball carries a [Sigstore provenance attestation](https://docs.npmjs.com/generating-provenance-statements) that cryptographically links it to the source commit and workflow run.
+
+### One-time setup
+
+1. **First publish** — publish `0.1.0` manually the first time so the package exists on npm:
+
+   ```bash
+   npm login
+   npm run build
+   npm publish --access public
+   ```
+
+2. **Configure Trusted Publisher** on npm:
+   - Go to `https://www.npmjs.com/package/domain-agents/access`
+   - Under **Trusted Publisher**, add **GitHub Actions**:
+     - Organization: `jonnonz1`
+     - Repository: `domain-agents`
+     - Workflow filename: `publish.yml`
+     - Environment name: `npm-publish`
+
+3. **Create the GitHub environment**:
+   - GitHub → Settings → Environments → **New environment** → `npm-publish`
+   - Add yourself as a **Required reviewer** so every release requires manual approval.
+
+### Cutting a release
+
+```bash
+# 1. Bump the version (updates package.json and creates a v* tag)
+npm version patch   # or: minor | major
+
+# 2. Push the tag
+git push --follow-tags
+
+# 3. Create a GitHub Release for the tag (UI or CLI)
+gh release create v$(jq -r .version package.json) --generate-notes
+```
+
+The `Publish to npm` workflow triggers on the release, waits for your approval in the `npm-publish` environment, verifies the tag matches `package.json`, runs tests and build, then publishes with `--provenance`.
+
+### Security posture
+
+- **No long-lived credentials** — OIDC mints a short-lived token per publish.
+- **Environment gate** — a human must approve each publish.
+- **Pinned action SHAs** — third-party actions are pinned to commit hashes, not mutable tags.
+- **Least-privilege permissions** — workflows declare `contents: read` by default; publish adds `id-token: write` only where needed.
+- **Tag/version mismatch check** — a release tagged `v1.2.3` must match `package.json` or the publish fails.
+- **`files` allowlist** — only `dist/`, `README.md`, and `LICENSE` ship. Source, tests, and fixtures never reach npm.
+
+## Author
+
+Built by [John Gregoriadis](https://jonno.nz) — engineering, AI, and the bits in between.
+
 ## License
 
-ISC
+[MIT](./LICENSE)

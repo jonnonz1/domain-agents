@@ -7,20 +7,45 @@
     "domain-agents": "dist/cli/index.js",
     "domain-agents-mcp": "dist/mcp/server.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm test && npm run build"
   },
   "keywords": [
     "ai",
     "agents",
     "architecture",
     "domains",
-    "evolutionary"
+    "evolutionary",
+    "cli",
+    "mcp",
+    "claude",
+    "cursor"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "John Gregoriadis <https://jonno.nz>",
+  "license": "MIT",
+  "homepage": "https://github.com/jonnonz1/domain-agents#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jonnonz1/domain-agents.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jonnonz1/domain-agents/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "devDependencies": {
     "@types/node": "^25.5.2",

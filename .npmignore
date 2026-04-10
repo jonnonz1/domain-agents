@@ -1,0 +1,15 @@
+src
+tests
+.github
+.claude
+.cursor
+.vscode
+.idea
+tsconfig.json
+vitest.config.ts
+WORKING_DOC.md
+CLAUDE.md
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
