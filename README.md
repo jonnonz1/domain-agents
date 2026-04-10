@@ -149,6 +149,42 @@ Detects:
 - **Boundary violations** — cross-domain imports that bypass interfaces
 - **Stale agent files** — domains that have changed since last discovery
 
+### CI Integration
+
+Use `--ci` to fail the build when domains are stale or have boundary violations. Use `--json` for machine-readable output.
+
+```bash
+# Fail the build if agents are stale
+domain-agents health --ci ./my-app
+
+# JSON output for custom tooling
+domain-agents health --json ./my-app
+```
+
+Add this to your GitHub Actions workflow to catch domain drift on every PR:
+
+```yaml
+# .github/workflows/domain-health.yml
+name: Domain Health
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npx domain-agents health --ci .
+```
+
 ## Commands
 
 | Command | Description |
@@ -157,7 +193,7 @@ Detects:
 | `domain-agents show <path>` | Visual overview of the proposal |
 | `domain-agents init <path> [--enrich]` | Generate agent files and AGENTS.md |
 | `domain-agents setup` | Configure API key for LLM enrichment |
-| `domain-agents health <path>` | Check domain boundaries and staleness |
+| `domain-agents health <path> [--ci] [--json]` | Check domain boundaries and staleness |
 | `domain-agents hooks cursor <path>` | Generate Cursor rule files |
 
 ## Key Design Principles

@@ -130,44 +130,58 @@ program
   .command('health')
   .description('Check domain boundaries, coupling, and agent file staleness')
   .argument('[path]', 'Path to the project root', '.')
-  .action(async (path: string) => {
+  .option('--ci', 'Exit with non-zero code if stale domains, coupling issues, or boundary violations are found')
+  .option('--json', 'Output the health report as JSON')
+  .action(async (path: string, options: { ci?: boolean; json?: boolean }) => {
     const rootPath = resolve(path);
 
     try {
       const report = await runHealth(rootPath);
 
-      console.log('\nDomain Health Report:\n');
-      for (const domain of report.domains) {
-        const icon = domain.status === 'healthy' ? '✓' : domain.status === 'warning' ? '⚠' : '✗';
-        let detail = '';
-        if (domain.newFiles.length > 0) {
-          detail += ` (${domain.newFiles.length} new files not covered)`;
+      if (options.json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log('\nDomain Health Report:\n');
+        for (const domain of report.domains) {
+          const icon = domain.status === 'healthy' ? '✓' : domain.status === 'warning' ? '⚠' : '✗';
+          let detail = '';
+          if (domain.newFiles.length > 0) {
+            detail += ` (${domain.newFiles.length} new files not covered)`;
+          }
+          if (domain.removedFiles.length > 0) {
+            detail += ` (${domain.removedFiles.length} files removed)`;
+          }
+          console.log(`  ${icon} ${domain.name.padEnd(20)} ${domain.status}${detail}`);
         }
-        if (domain.removedFiles.length > 0) {
-          detail += ` (${domain.removedFiles.length} files removed)`;
+
+        if (report.couplingIssues.length > 0) {
+          console.log('\nCoupling Issues:\n');
+          for (const issue of report.couplingIssues) {
+            console.log(`  ⚠ ${issue.message}`);
+          }
         }
-        console.log(`  ${icon} ${domain.name.padEnd(20)} ${domain.status}${detail}`);
+
+        if (report.boundaryViolations.length > 0) {
+          console.log(`\nBoundary Violations: ${report.boundaryViolations.length} cross-domain imports bypass interfaces\n`);
+        }
+
+        if (report.recommendations.length > 0) {
+          console.log('\nRecommendations:\n');
+          for (const rec of report.recommendations) {
+            console.log(`  → ${rec}`);
+          }
+        }
+
+        console.log('');
       }
 
-      if (report.couplingIssues.length > 0) {
-        console.log('\nCoupling Issues:\n');
-        for (const issue of report.couplingIssues) {
-          console.log(`  ⚠ ${issue.message}`);
+      if (options.ci) {
+        const hasStale = report.domains.some(d => d.status === 'stale');
+        const hasIssues = report.couplingIssues.length > 0 || report.boundaryViolations.length > 0;
+        if (hasStale || hasIssues) {
+          process.exit(1);
         }
       }
-
-      if (report.boundaryViolations.length > 0) {
-        console.log(`\nBoundary Violations: ${report.boundaryViolations.length} cross-domain imports bypass interfaces\n`);
-      }
-
-      if (report.recommendations.length > 0) {
-        console.log('\nRecommendations:\n');
-        for (const rec of report.recommendations) {
-          console.log(`  → ${rec}`);
-        }
-      }
-
-      console.log('');
     } catch (err) {
       console.error('Health check failed:', (err as Error).message);
       process.exit(1);
