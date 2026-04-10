@@ -21,7 +21,9 @@ jobs:
 
     permissions:
       contents: read
-      # Required for npm Trusted Publishing (OIDC) and provenance attestation.
+      # Required for Sigstore provenance attestation (not for npm auth —
+      # auth uses NPM_TOKEN). Provenance still links the published tarball
+      # to this commit and workflow run via GitHub's OIDC.
       id-token: write
 
     steps:
@@ -56,3 +58,5 @@ jobs:
 
       - name: Publish to npm with provenance
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

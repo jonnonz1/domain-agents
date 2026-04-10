@@ -188,29 +188,37 @@ Three realistic TypeScript codebases in `tests/fixtures/`:
 
 ## Releasing
 
-This package publishes to npm via GitHub Actions using **npm Trusted Publishing (OIDC)** — no `NPM_TOKEN` secret is stored anywhere. Every published tarball carries a [Sigstore provenance attestation](https://docs.npmjs.com/generating-provenance-statements) that cryptographically links it to the source commit and workflow run.
+This package publishes to npm via GitHub Actions. Every published tarball carries a [Sigstore provenance attestation](https://docs.npmjs.com/generating-provenance-statements) that cryptographically links it to the source commit and workflow run, even with token-based auth.
 
 ### One-time setup
 
-1. **First publish** — publish `0.1.0` manually the first time so the package exists on npm:
+1. **Create a granular npm access token** at `https://www.npmjs.com/settings/<your-username>/tokens/new`:
+   - **Type:** Granular access token
+   - **Expiration:** 90 days (rotate on schedule)
+   - **Packages and scopes:** _Only_ `domain-agents` — never grant account-wide access
+   - **Permissions:** Read and write
+   - **Allow publishing with 2FA:** **Yes / bypass 2FA** (required — CI cannot respond to OTP prompts)
+
+   Copy the token once — you can't view it again.
+
+2. **Store the token as a GitHub secret**:
+   - GitHub → Settings → Secrets and variables → Actions → **New repository secret**
+   - Name: `NPM_TOKEN`
+   - Value: paste the token from step 1
+   - **Never commit this token, paste it into a chat, or put it in `.env` files.**
+
+3. **Create the GitHub environment** for a manual approval gate:
+   - GitHub → Settings → Environments → **New environment** → `npm-publish`
+   - Add yourself as a **Required reviewer** so every release requires manual approval in the Actions tab before the publish step runs.
+   - Scope the `NPM_TOKEN` secret to this environment if you want belt-and-braces (Environment secrets override repository secrets).
+
+4. **First publish** — publish `0.1.0` manually once so the package exists on npm. You can either use the same granular token locally (set `//registry.npmjs.org/:_authToken=<token>` in `~/.npmrc`) or run `npm login` and respond to the 2FA prompt:
 
    ```bash
    npm login
    npm run build
    npm publish --access public
    ```
-
-2. **Configure Trusted Publisher** on npm:
-   - Go to `https://www.npmjs.com/package/domain-agents/access`
-   - Under **Trusted Publisher**, add **GitHub Actions**:
-     - Organization: `jonnonz1`
-     - Repository: `domain-agents`
-     - Workflow filename: `publish.yml`
-     - Environment name: `npm-publish`
-
-3. **Create the GitHub environment**:
-   - GitHub → Settings → Environments → **New environment** → `npm-publish`
-   - Add yourself as a **Required reviewer** so every release requires manual approval.
 
 ### Cutting a release
 
@@ -229,12 +237,14 @@ The `Publish to npm` workflow triggers on the release, waits for your approval i
 
 ### Security posture
 
-- **No long-lived credentials** — OIDC mints a short-lived token per publish.
-- **Environment gate** — a human must approve each publish.
-- **Pinned action SHAs** — third-party actions are pinned to commit hashes, not mutable tags.
-- **Least-privilege permissions** — workflows declare `contents: read` by default; publish adds `id-token: write` only where needed.
+- **Least-privilege token** — `NPM_TOKEN` is a granular access token scoped to `domain-agents` only, with an expiration date. Rotate on schedule.
+- **Environment gate** — the `npm-publish` environment requires a human reviewer to approve each release before the job can read the secret or publish.
+- **Provenance attestation** — even with token-based auth, every published tarball is signed via GitHub's OIDC and Sigstore, linking it to the exact commit and workflow run. Verifiable on npmjs.com.
+- **Pinned action SHAs** — third-party actions are pinned to commit hashes, not mutable tags, so a tag hijack on `actions/checkout` can't affect this pipeline.
+- **Least-privilege permissions** — workflows declare `contents: read` by default; the publish job adds `id-token: write` only for Sigstore provenance, not npm auth.
 - **Tag/version mismatch check** — a release tagged `v1.2.3` must match `package.json` or the publish fails.
 - **`files` allowlist** — only `dist/`, `README.md`, and `LICENSE` ship. Source, tests, and fixtures never reach npm.
+- **`publishConfig.provenance` removed from `package.json`** — local publishes work without `--no-provenance`. The workflow passes `--provenance` explicitly so CI publishes always attest.
 
 ## Author
 
