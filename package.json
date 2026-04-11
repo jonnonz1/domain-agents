@@ -1,6 +1,6 @@
 {
   "name": "domain-agents",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Discover business domains in codebases and generate AI agent files for evolutionary architecture",
   "main": "dist/index.js",
   "bin": {

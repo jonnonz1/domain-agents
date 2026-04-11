@@ -2,6 +2,9 @@
 
 import { Command } from 'commander';
 import { resolve } from 'path';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { runDiscover } from './discover.js';
 import { runShow } from './show.js';
 import { runInit } from './init.js';
@@ -10,12 +13,15 @@ import { runSetup, resolveApiKey } from './setup.js';
 import { installClaudeHooks } from '../hooks/claude.js';
 import { installCursorRules } from '../hooks/cursor.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+
 const program = new Command();
 
 program
   .name('domain-agents')
   .description('Discover business domains in codebases and generate AI agent files for evolutionary architecture')
-  .version('0.1.0');
+  .version(pkg.version);
 
 program
   .command('discover')
