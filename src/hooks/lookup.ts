@@ -80,43 +80,61 @@ export async function createLookup(rootPath: string): Promise<DomainLookup> {
     const domain = domainMap.get(domainName);
     if (!domain) return null;
 
-    // Extract unique directory prefixes from the domain's files
     const dirPrefixes = new Set<string>();
     const filePatterns = new Set<string>();
+    const singular = domainName.replace(/s$/, '');
 
     for (const file of domain.files) {
       const parts = file.split('/');
       if (parts.length > 1) {
         dirPrefixes.add(parts[0]);
       }
-      // Extract the naming prefix for cross-layer matching
       const fileName = parts[parts.length - 1].replace(/\.tsx?$/, '');
       const nameParts = fileName.split(/[.\-]/);
-      if (nameParts[0] === domainName || nameParts[0] === domainName.replace(/s$/, '')) {
-        // e.g., auth.controller, auth.service → pattern **/auth.*
+      if (nameParts[0] === domainName || nameParts[0] === singular) {
         filePatterns.add(`**/${domainName}.*`);
         filePatterns.add(`**/${domainName}-*`);
+        if (singular !== domainName) {
+          filePatterns.add(`**/${singular}.*`);
+          filePatterns.add(`**/${singular}-*`);
+        }
       }
     }
 
     const patterns: string[] = [];
 
-    // Directory-based patterns (for feature-organized)
     for (const dir of dirPrefixes) {
-      if (dir === domainName || dir === domainName + 's') {
+      if (dir === domainName || dir === domainName + 's' || dir === singular) {
         patterns.push(`src/${dir}/**`);
       }
     }
 
-    // File-name based patterns (for layer-organized / mixed)
     for (const pattern of filePatterns) {
       patterns.push(pattern);
     }
 
-    // If no patterns yet, use explicit file list
-    if (patterns.length === 0) {
-      for (const file of domain.files) {
-        patterns.push(`src/${file}`);
+    // Add explicit paths for files not covered by directory or naming patterns
+    for (const file of domain.files) {
+      const prefixed = `src/${file}`;
+      const covered = patterns.some(p => {
+        if (p.endsWith('/**')) {
+          return prefixed.startsWith(p.slice(0, -2));
+        }
+        if (p.startsWith('**/')) {
+          const baseName = file.split('/').pop() ?? '';
+          const suffix = p.slice(3);
+          if (suffix.endsWith('*')) {
+            return baseName.startsWith(suffix.slice(0, -1));
+          }
+          if (suffix.includes('.*')) {
+            const prefix = suffix.split('.*')[0];
+            return baseName.split(/[.\-]/)[0] === prefix;
+          }
+        }
+        return prefixed === p;
+      });
+      if (!covered) {
+        patterns.push(prefixed);
       }
     }
 

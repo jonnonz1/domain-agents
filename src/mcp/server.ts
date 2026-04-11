@@ -27,7 +27,7 @@ async function loadAgentFile(rootPath: string, domainName: string): Promise<stri
   }
 }
 
-function startServer(rootPath: string) {
+export function startServer(rootPath: string) {
   const server = new McpServer({
     name: 'domain-agents',
     version: '0.1.0',
@@ -176,28 +176,28 @@ function startServer(rootPath: string) {
 }
 
 // Main: resolve root path from args, support --list-domains for hook usage
-const args = process.argv.slice(2);
-const listDomainsFlag = args.includes('--list-domains');
-const rootPath = args.find(a => !a.startsWith('--')) || process.cwd();
+if (process.argv[1]?.endsWith('server.js')) {
+  const args = process.argv.slice(2);
+  const listDomainsFlag = args.includes('--list-domains');
+  const rootPath = args.find(a => !a.startsWith('--')) || process.cwd();
 
-if (listDomainsFlag) {
-  // CLI mode: print domain summary to stdout for SessionStart hooks
-  loadProposal(rootPath).then(proposal => {
-    console.log(`This codebase has ${proposal.domains.length} business domains. Use the domain-agents MCP tools (domain_lookup, domain_context, domain_files, list_domains) to get domain context before making changes.`);
-    console.log('');
-    console.log('Top domains:');
-    for (const d of proposal.domains.slice(0, 15)) {
-      console.log(`  ${d.name.padEnd(22)} ${String(d.files.length).padStart(3)} files  ${Math.round(d.confidence * 100)}% confidence`);
-    }
-    if (proposal.domains.length > 15) {
-      console.log(`  ... and ${proposal.domains.length - 15} more`);
-    }
-  }).catch(() => {
-    // No proposal yet — silently skip
-  });
-} else {
-  // MCP server mode
-  const server = startServer(rootPath);
-  const transport = new StdioServerTransport();
-  server.connect(transport);
+  if (listDomainsFlag) {
+    loadProposal(rootPath).then(proposal => {
+      console.log(`This codebase has ${proposal.domains.length} business domains. Use the domain-agents MCP tools (domain_lookup, domain_context, domain_files, list_domains) to get domain context before making changes.`);
+      console.log('');
+      console.log('Top domains:');
+      for (const d of proposal.domains.slice(0, 15)) {
+        console.log(`  ${d.name.padEnd(22)} ${String(d.files.length).padStart(3)} files  ${Math.round(d.confidence * 100)}% confidence`);
+      }
+      if (proposal.domains.length > 15) {
+        console.log(`  ... and ${proposal.domains.length - 15} more`);
+      }
+    }).catch(() => {
+      // No proposal yet — silently skip
+    });
+  } else {
+    const server = startServer(rootPath);
+    const transport = new StdioServerTransport();
+    server.connect(transport);
+  }
 }
