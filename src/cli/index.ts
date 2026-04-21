@@ -12,6 +12,7 @@ import { runHealth } from './health.js';
 import { runSetup, resolveApiKey } from './setup.js';
 import { installClaudeHooks } from '../hooks/claude.js';
 import { installCursorRules } from '../hooks/cursor.js';
+import { bannerString, success, warn, arrow, header, confidence, statusIcon } from './ui.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
@@ -22,6 +23,8 @@ program
   .name('domain-agents')
   .description('Discover business domains in codebases and generate AI agent files for evolutionary architecture')
   .version(pkg.version);
+
+program.addHelpText('beforeAll', bannerString());
 
 program
   .command('discover')
@@ -35,11 +38,11 @@ program
     try {
       const result = await runDiscover(rootPath);
 
-      console.log('Proposed Domains:\n');
+      console.log(header('Proposed Domains:') + '\n');
       for (const domain of result.domains) {
-        const confidence = Math.round(domain.confidence * 100);
+        const pct = Math.round(domain.confidence * 100);
         const signalTypes = [...new Set(domain.signals.map(s => s.type))].join(', ');
-        console.log(`  ${domain.name.padEnd(20)} ${String(domain.files.length).padStart(3)} files  confidence: ${confidence}%  signals: ${signalTypes}`);
+        console.log(`  ${domain.name.padEnd(20)} ${String(domain.files.length).padStart(3)} files  confidence: ${confidence(pct)}  signals: ${signalTypes}`);
 
         if (options.verbose) {
           for (const file of domain.files) {
@@ -120,11 +123,11 @@ program
 
       const result = await runInit(rootPath, { enrich: options.enrich });
 
-      console.log('\nGenerated files:\n');
+      console.log('\n' + header('Generated files:') + '\n');
       for (const file of result.agentFiles) {
-        console.log(`  ✓ ${file}`);
+        console.log(`  ${success(file)}`);
       }
-      console.log(`  ✓ ${result.agentsMdPath}`);
+      console.log(`  ${success(result.agentsMdPath)}`);
       console.log(`\nDone. Review the generated files and refine as needed.\n`);
     } catch (err) {
       console.error('Init failed:', (err as Error).message);
@@ -147,9 +150,9 @@ program
       if (options.json) {
         console.log(JSON.stringify(report, null, 2));
       } else {
-        console.log('\nDomain Health Report:\n');
+        console.log('\n' + header('Domain Health Report:') + '\n');
         for (const domain of report.domains) {
-          const icon = domain.status === 'healthy' ? '✓' : domain.status === 'warning' ? '⚠' : '✗';
+          const icon = statusIcon(domain.status);
           let detail = '';
           if (domain.newFiles.length > 0) {
             detail += ` (${domain.newFiles.length} new files not covered)`;
@@ -161,20 +164,20 @@ program
         }
 
         if (report.couplingIssues.length > 0) {
-          console.log('\nCoupling Issues:\n');
+          console.log('\n' + header('Coupling Issues:') + '\n');
           for (const issue of report.couplingIssues) {
-            console.log(`  ⚠ ${issue.message}`);
+            console.log(`  ${warn(issue.message)}`);
           }
         }
 
         if (report.boundaryViolations.length > 0) {
-          console.log(`\nBoundary Violations: ${report.boundaryViolations.length} cross-domain imports bypass interfaces\n`);
+          console.log(`\n${header('Boundary Violations:')} ${report.boundaryViolations.length} cross-domain imports bypass interfaces\n`);
         }
 
         if (report.recommendations.length > 0) {
-          console.log('\nRecommendations:\n');
+          console.log('\n' + header('Recommendations:') + '\n');
           for (const rec of report.recommendations) {
-            console.log(`  → ${rec}`);
+            console.log(`  ${arrow(rec)}`);
           }
         }
 
@@ -208,10 +211,10 @@ hooks
     try {
       const result = await installClaudeHooks(rootPath);
 
-      console.log('\nClaude Code integration installed:\n');
-      console.log(`  ✓ ${result.settingsPath}  (MCP server + SessionStart hook)`);
-      console.log(`  ✓ ${result.rulesPath}  (global domain rules)`);
-      console.log(`  ✓ ${result.domainRuleFiles.length} per-domain rule files  (auto-activate on file edit)`);
+      console.log('\n' + header('Claude Code integration installed:') + '\n');
+      console.log(`  ${success(`${result.settingsPath}  (MCP server + SessionStart hook)`)}`);
+      console.log(`  ${success(`${result.rulesPath}  (global domain rules)`)}`);
+      console.log(`  ${success(`${result.domainRuleFiles.length} per-domain rule files  (auto-activate on file edit)`)}`);
       console.log(`\nClaude Code will now:`);
       console.log(`  1. Auto-load domain context when you edit files in any domain`);
       console.log(`  2. Show cross-domain dependencies and prompt you to consult related domains`);
@@ -232,9 +235,9 @@ hooks
     try {
       const result = await installCursorRules(rootPath);
 
-      console.log('\nCursor integration installed:\n');
+      console.log('\n' + header('Cursor integration installed:') + '\n');
       for (const file of result.ruleFiles) {
-        console.log(`  ✓ ${file}`);
+        console.log(`  ${success(file)}`);
       }
       console.log(`\nCursor will automatically load domain context when editing matching files.\n`);
     } catch (err) {
