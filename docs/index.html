@@ -95,6 +95,7 @@
     .site-nav .links { display: flex; gap: 1.5rem; font-family: var(--font-mono); font-size: 0.8rem; }
     .site-nav .links a { color: var(--text-muted); }
     .site-nav .links a:hover { color: var(--text-bright); }
+    .muted { color: var(--text-muted); }
 
     /* ============ Shell ============ */
     main.shell {
@@ -600,6 +601,7 @@
       <a href="#stages">Stages</a>
       <a href="#commands">CLI</a>
       <a href="https://github.com/jonnonz1/domain-agents">GitHub</a>
+      <a href="https://jonno.nz">Blog ↗</a>
     </div>
   </div>
 </nav>
@@ -655,15 +657,17 @@
   <section id="why">
     <div class="section-bar">
       <div class="sb-num">01</div>
-      <div class="sb-label">Why — <em>building is cheap, scaling is the new hard part</em></div>
+      <div class="sb-label">Why — <em>the map AI never had</em></div>
       <div class="sb-count">thesis</div>
     </div>
     <div class="prose">
-      <p>AI has collapsed the cost of building software. MVPs are cheap. But when the product takes off, the codebase hits a wall — AI-generated code optimizes for <em>now</em>, not for scale.</p>
-      <p>The traditional answer is <em>"rewrite it properly."</em> The better answer is <strong>evolutionary architecture</strong>: structure the system so each domain can evolve independently when the data says it's time. Domain Agents replicates, for AI-assisted development, the pattern that already works for engineering organisations — teams own domains, communicate through interfaces, and make independent decisions inside their boundaries.</p>
+      <p>AI shipped the build phase. It did not ship the scale phase. The first ten thousand lines are cheap; the next hundred thousand are where the codebase decides whether to survive.</p>
+      <p>Every AI edit that lands without architectural context is a vote for entropy. The assistant does not know which seams are real, which modules are hotspots, which files are fragile. So it touches whatever the prompt points at, and the shape of the system drifts one commit at a time.</p>
+      <p>The answer is not microservices, a framework, or the annual rewrite. It is <strong>evolutionary architecture</strong>: a system shaped so each domain can evolve independently when the data says it's time — and a durable, machine-readable map of where the seams are, what each one owns, and who depends on whom. Something the next prompt, and the next agent, can actually read.</p>
+      <p class="muted" style="font-size: 0.85rem; margin-top: 0.8rem;">More on the thinking behind this on my blog at <a href="https://jonno.nz">jonno.nz</a>.</p>
     </div>
     <div class="callout info">
-      <strong>The bet.</strong> Interfaces are the architecture. Implementations are the current stage. When you carry that discipline into the files your AI agents read, every feature either strengthens the boundary or surfaces a reason to move the line.
+      <strong>The bet.</strong> Context is not a prompt you retype. It is a file that loads itself. Every feature should either strengthen a boundary or surface a reason to move it — and the agents editing your code should see both, in the moment, without being asked.
     </div>
   </section>
 
