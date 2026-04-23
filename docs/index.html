@@ -1,1429 +1,1221 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>domain-agents — Evolutionary architecture for AI-built codebases</title>
-<meta name="description" content="A CLI that discovers business domains in TypeScript/Node codebases and generates AI agent files for evolutionary architecture. Context-aware AI assistants, boundary monitoring, and a path from inline to distributed — without a rewrite.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AD%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0c1520;
-    --bg-surface: #141f2e;
-    --bg-surface-2: #1a2637;
-    --text: #bfc8d2;
-    --text-muted: #566a7c;
-    --text-bright: #e4e9ee;
-    --accent: #d4a853;
-    --accent-hover: #e4bc6a;
-    --tag-color: #7eb8a8;
-    --eng-color: #3d7b8a;
-    --danger: #e07a5f;
-    --border: rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.12);
-    --max-width: 62rem;
-    --font-text: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --font-serif: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Domain Agents — Evolutionary architecture for AI-assisted codebases</title>
+  <meta name="description" content="A CLI that discovers business domains in TypeScript/Node codebases and generates AI agent files, a system map, and an MCP server so your coding agents can build for today and evolve tomorrow." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90' fill='%23d4a853'%3E%E2%97%89%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0f0d;
+      --bg-surface: #12181a;
+      --bg-surface-2: #1a2022;
+      --text: #c9d1c9;
+      --text-muted: #6e7a73;
+      --text-bright: #eaf3ea;
 
-    /* Primitive tints */
-    --domain: var(--tag-color);
-    --domain-soft: rgba(126, 184, 168, 0.08);
-    --domain-line: rgba(126, 184, 168, 0.3);
-    --agent: var(--accent);
-    --agent-soft: rgba(212, 168, 83, 0.08);
-    --agent-line: rgba(212, 168, 83, 0.3);
-    --health: var(--eng-color);
-    --health-soft: rgba(61, 123, 138, 0.1);
-    --health-line: rgba(61, 123, 138, 0.35);
-  }
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-  html {
-    font-size: 17px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    scroll-behavior: smooth;
-  }
-  @media (max-width: 560px) { html { font-size: 15.5px; } }
-  body {
-    font-family: var(--font-text);
-    font-weight: 400;
-    line-height: 1.65;
-    color: var(--text);
-    background: var(--bg);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow-x: clip;
-    /* faint CRT scanlines */
-    background-image: repeating-linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.012) 0,
-      rgba(255, 255, 255, 0.012) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-  }
-  ::selection { background: rgba(212, 168, 83, 0.25); color: var(--text-bright); }
-  a {
-    color: var(--accent);
-    text-decoration: none;
-    transition: color 0.15s;
-  }
-  a:hover { color: var(--accent-hover); }
-  img { max-width: 100%; height: auto; }
+      --green:   #5fd38c;
+      --amber:   #ffb347;
+      --cyan:    #6ec9d7;
+      --magenta: #d98bb0;
+      --red:     #e07a5f;
 
-  /* ============ Site nav ============ */
-  .site-nav {
-    padding: 1.1rem 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .site-nav .wrap {
-    max-width: var(--max-width);
-    margin: 0 auto;
-    padding: 0 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-  }
-  .site-nav .brand {
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-    color: var(--text-bright);
-    letter-spacing: 0;
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.4rem;
-  }
-  .site-nav .brand::before { content: '$'; color: var(--text-muted); margin-right: 0.15rem; }
-  .site-nav .brand .slash { color: var(--text-muted); }
-  .site-nav .links {
-    display: flex;
-    gap: 1.35rem;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    flex-wrap: wrap;
-  }
-  .site-nav .links a { color: var(--text-muted); }
-  .site-nav .links a:hover { color: var(--text-bright); }
+      --accent: var(--green);
+      --accent-hover: #8ce3a8;
 
-  /* ============ Shell ============ */
-  main.shell {
-    flex: 1;
-    max-width: var(--max-width);
-    margin: 0 auto;
-    width: 100%;
-    padding: 3rem 1.5rem 5rem;
-    animation: fadeIn 0.3s ease;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(0.4rem); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+      --border: rgba(95, 211, 140, 0.10);
+      --border-strong: rgba(95, 211, 140, 0.24);
 
-  /* ============ Masthead ============ */
-  .masthead {
-    padding-bottom: 2.5rem;
-    margin-bottom: 2.5rem;
-    border-bottom: 1px solid var(--border-strong);
-  }
-  .mh-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 1.35rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .mh-eyebrow .dot {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--text-muted);
-  }
-  .mh-eyebrow .sep { flex: 1; height: 1px; background: var(--border); }
+      --max-width: 58rem;
+      --font-text: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --font-serif: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    /* CRT scanlines — very subtle */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0) 0px,
+        rgba(255, 255, 255, 0) 2px,
+        rgba(255, 255, 255, 0.015) 3px,
+        rgba(255, 255, 255, 0) 4px
+      );
+      z-index: 100;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 120%);
+      z-index: 99;
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html {
+      font-size: 17.5px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      scroll-behavior: smooth;
+    }
+    @media (max-width: 560px) { html { font-size: 16px; } }
+    body {
+      font-family: var(--font-text);
+      font-weight: 400;
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      overflow-x: clip;
+    }
+    ::selection { background: rgba(255, 255, 255, 0.18); color: var(--text-bright); }
+    a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+    a:hover { color: var(--accent-hover); }
 
-  .masthead h1 {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: clamp(1.7rem, 3.6vw, 2.5rem);
-    line-height: 1.2;
-    letter-spacing: -0.015em;
-    color: var(--text-bright);
-    text-wrap: balance;
-    margin-bottom: 1.25rem;
-    max-width: 44rem;
-  }
-  .masthead h1::after {
-    content: '_';
-    color: var(--text-bright);
-    margin-left: 0.2em;
-    animation: cursor-blink 1.1s steps(1, end) infinite;
-  }
-  @keyframes cursor-blink { 50% { opacity: 0; } }
-  .masthead h1 em { font-style: normal; color: inherit; }
-  .masthead .dek {
-    font-family: var(--font-text);
-    font-weight: 400;
-    font-size: 0.95rem;
-    line-height: 1.65;
-    color: var(--text);
-    max-width: 44rem;
-    margin-bottom: 1.75rem;
-    text-wrap: pretty;
-  }
+    /* ============ Nav ============ */
+    .site-nav { padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
+    .site-nav .wrap {
+      max-width: var(--max-width); margin: 0 auto; padding: 0 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .site-nav .brand {
+      font-family: var(--font-mono);
+      font-size: 0.9rem; color: var(--text-bright); letter-spacing: -0.02em;
+    }
+    .site-nav .brand .dot {
+      display: inline-block; width: 8px; height: 8px;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+      animation: phosphor 1.8s ease-in-out infinite;
+      margin-right: 0.55rem; vertical-align: middle;
+    }
+    @keyframes phosphor { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+    .site-nav .links { display: flex; gap: 1.5rem; font-family: var(--font-mono); font-size: 0.8rem; }
+    .site-nav .links a { color: var(--text-muted); }
+    .site-nav .links a:hover { color: var(--text-bright); }
 
-  .hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 0.25rem;
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.55rem 1rem;
-    border-radius: 0.2rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    text-decoration: none;
-    border: 1px solid transparent;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-  }
-  .btn.primary {
-    background: transparent;
-    color: var(--text-bright);
-    border-color: var(--text-bright);
-  }
-  .btn.primary:hover { background: rgba(255,255,255,0.04); }
-  .btn.ghost { background: transparent; color: var(--text-muted); border-color: var(--border-strong); }
-  .btn.ghost:hover { color: var(--text-bright); border-color: var(--text-bright); }
+    /* ============ Shell ============ */
+    main.shell {
+      max-width: var(--max-width); margin: 0 auto; width: 100%;
+      padding: 3rem 1.5rem 5rem;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(0.4rem); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
 
-  .mh-stats {
-    display: flex;
-    gap: 2rem;
-    flex-wrap: wrap;
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding-top: 1.25rem;
-    margin-top: 1.75rem;
-    border-top: 1px solid var(--border);
-  }
-  .mh-stats div b {
-    display: block;
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 1.1rem;
-    color: var(--text-bright);
-    margin-bottom: 0.15rem;
-    letter-spacing: 0;
-    text-transform: none;
-  }
+    /* ============ Masthead ============ */
+    .masthead {
+      padding-bottom: 2.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid var(--border-strong);
+      display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 2.5rem; align-items: center;
+    }
+    @media (max-width: 900px) { .masthead { grid-template-columns: 1fr; } .masthead .crt { max-width: 16rem; } }
+    .masthead .crt {
+      aspect-ratio: 1.2;
+      border: 1px solid var(--border-strong);
+      border-radius: 0.6rem;
+      background: linear-gradient(180deg, #0f1412 0%, #0a0f0d 100%);
+      padding: 1rem 1rem 1.4rem;
+      position: relative;
+      box-shadow: inset 0 0 40px rgba(95, 211, 140, 0.06), 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .masthead .crt::after {
+      content: ''; position: absolute; left: 50%; bottom: 0.35rem; transform: translateX(-50%);
+      width: 32%; height: 3px; background: rgba(95, 211, 140, 0.3); border-radius: 2px;
+    }
+    .masthead .crt .screen {
+      width: 100%; height: 100%;
+      background:
+        radial-gradient(ellipse at center, rgba(95, 211, 140, 0.08) 0%, transparent 70%),
+        #071009;
+      border: 1px solid rgba(95, 211, 140, 0.15);
+      border-radius: 0.35rem;
+      padding: 0.75rem 0.9rem;
+      font-family: var(--font-mono); font-size: 0.58rem;
+      color: var(--green); line-height: 1.55; overflow: hidden;
+      text-shadow: 0 0 5px rgba(95, 211, 140, 0.5);
+      position: relative;
+    }
+    .masthead .crt .screen::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: repeating-linear-gradient(to bottom, transparent 0, transparent 2px, rgba(0,0,0,0.15) 3px, transparent 4px);
+    }
+    .masthead .crt .screen .prompt { color: var(--amber); }
+    .masthead .crt .screen .ok { color: var(--green); }
+    .masthead .crt .screen .dim { color: #4e8a6a; }
+    .masthead .crt .screen .blink {
+      display: inline-block; width: 0.5em; height: 1em; background: var(--green);
+      vertical-align: -0.1em; animation: blink 1.1s step-end infinite; box-shadow: 0 0 8px var(--green);
+    }
+    .mh-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.68rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .mh-eyebrow .dot {
+      width: 6px; height: 6px;
+      background: var(--green); box-shadow: 0 0 6px var(--green);
+    }
+    .mh-eyebrow .sep { flex: 1; height: 1px; background: var(--border); }
 
-  /* ============ TOC ============ */
-  nav.toc {
-    position: sticky;
-    top: 0;
-    background: rgba(12, 21, 32, 0.92);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 0.9rem 0;
-    margin: 0 0 2.75rem;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    display: flex;
-    gap: 1.35rem;
-    flex-wrap: wrap;
-    z-index: 20;
-  }
-  nav.toc a {
-    color: var(--text-muted);
-    border-bottom: 1px solid transparent;
-    padding-bottom: 2px;
-    letter-spacing: 0.04em;
-  }
-  nav.toc a:hover { color: var(--text-bright); border-bottom-color: var(--text-muted); }
+    .masthead h1 {
+      font-family: var(--font-serif);
+      font-weight: 600;
+      font-size: clamp(1.9rem, 4vw, 3rem);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--text-bright);
+      text-wrap: balance;
+      margin-bottom: 1.25rem;
+    }
+    .masthead h1 em { font-style: normal; color: var(--text-bright); }
+    .masthead .dek {
+      font-family: var(--font-text);
+      font-weight: 400; font-size: 0.95rem; line-height: 1.65;
+      color: var(--text); max-width: 42rem;
+      margin-bottom: 1.5rem;
+    }
+    .masthead h1 .cursor {
+      display: inline-block; width: 0.55em; height: 1em;
+      background: var(--green); box-shadow: 0 0 12px var(--green);
+      vertical-align: -0.12em; margin-left: 0.1em;
+      animation: blink 1.1s step-end infinite;
+    }
+    @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    .mh-stats {
+      display: flex; gap: 2rem; flex-wrap: wrap;
+      font-family: var(--font-mono); font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      padding-top: 1rem; border-top: 1px solid var(--border);
+    }
+    .mh-stats div b {
+      display: block; font-family: var(--font-serif); font-weight: 600;
+      font-size: 1.35rem; color: var(--text-bright);
+      margin-bottom: 0.15rem; letter-spacing: -0.02em; text-transform: none;
+    }
+    .mh-cta { display: flex; gap: 1.25rem; margin: 1.25rem 0 0; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.78rem; }
+    .mh-cta a {
+      color: var(--text-bright);
+      border: 1px solid var(--border-strong);
+      padding: 0.5rem 0.9rem;
+      border-radius: 0.15rem;
+      letter-spacing: 0.06em;
+      text-transform: none;
+      font-weight: 400;
+      transition: all 0.15s;
+    }
+    .mh-cta a::before { content: '$ '; color: var(--green); }
+    .mh-cta a:hover::before { color: var(--accent-hover); }
+    .mh-cta a:hover { border-color: var(--text-muted); color: var(--text-bright); background: rgba(255, 255, 255, 0.03); }
+    .mh-cta a.primary { background: rgba(255, 255, 255, 0.04); border-color: var(--border-strong); color: var(--text-bright); }
+    .mh-cta a.primary:hover { background: rgba(255, 255, 255, 0.07); border-color: var(--text-muted); color: var(--text-bright); }
 
-  section { margin: 0 0 4rem; }
+    /* ============ Section bar ============ */
+    .section-bar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: baseline;
+      gap: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-strong);
+      margin-bottom: 1.75rem;
+      font-family: var(--font-mono);
+    }
+    .section-bar .sb-num {
+      font-size: 0.68rem; color: var(--green);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid rgba(95, 211, 140, 0.3);
+      border-radius: 0.15rem;
+      background: rgba(95, 211, 140, 0.04);
+    }
+    .section-bar .sb-label {
+      font-family: var(--font-serif); font-weight: 600;
+      font-size: 1.05rem; color: var(--text-bright);
+      letter-spacing: -0.01em;
+    }
+    .section-bar .sb-label::before {
+      content: '>'; color: var(--green); margin-right: 0.55rem; font-weight: 400;
+    }
+    .section-bar .sb-label em { font-style: normal; color: var(--text-muted); font-weight: 400; }
+    .section-bar .sb-count {
+      font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.06em;
+    }
 
-  /* ============ Section bar ============ */
-  .section-bar {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: baseline;
-    gap: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-strong);
-    margin-bottom: 1.75rem;
-    font-family: var(--font-mono);
-  }
-  .sb-num {
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    letter-spacing: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-  .sb-num::before { content: '['; }
-  .sb-num::after { content: ']'; }
-  .sb-label {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 1.05rem;
-    color: var(--text-bright);
-    letter-spacing: 0;
-  }
-  .sb-label em { font-style: normal; color: inherit; }
-  .sb-hint {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    letter-spacing: 0;
-    text-transform: none;
-  }
-  .sb-hint::before { content: '// '; opacity: 0.6; }
+    /* Prose inside sections */
+    section { margin-bottom: 3.5rem; }
+    .prose { font-family: var(--font-text); font-weight: 400; font-size: 0.95rem; line-height: 1.7; color: var(--text); max-width: 44rem; }
+    .prose p { margin-bottom: 1.1em; text-wrap: pretty; }
+    .prose em { font-style: normal; color: var(--text-bright); }
+    .prose strong { font-weight: 500; color: var(--text-bright); }
+    .prose code { font-family: var(--font-mono); font-size: 0.82em; color: var(--text-bright); background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 0.05em 0.35em; border-radius: 0.2rem; }
 
-  /* ============ Typography ============ */
-  p { margin: 0 0 1rem; color: var(--text); font-size: 0.92rem; line-height: 1.7; }
-  em { font-style: normal; color: inherit; }
-  .lead { font-size: 0.98rem; color: var(--text); max-width: 52rem; }
-  .muted { color: var(--text-muted); }
-  .eyebrow {
-    font-family: var(--font-mono);
-    font-size: 0.64rem;
-    color: var(--text-muted);
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    margin-bottom: 0.9rem;
-  }
-  h3 {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 0.95rem;
-    color: var(--text-bright);
-    margin: 2rem 0 0.6rem;
-    line-height: 1.4;
-    letter-spacing: 0;
-  }
-  h3::before { content: '# '; color: var(--text-muted); }
+    h3.sub {
+      font-family: var(--font-serif); font-weight: 500;
+      font-size: 1.15rem; color: var(--text-bright);
+      margin: 2rem 0 0.5rem; line-height: 1.2;
+    }
 
-  code {
-    font-family: var(--font-mono);
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    padding: 0.08em 0.4em;
-    border-radius: 0.2rem;
-    font-size: 0.82em;
-    color: var(--text-bright);
-  }
+    /* ============ Diagram ============ */
+    .diagram {
+      border: 1px solid var(--border-strong);
+      border-radius: 0.4rem;
+      background:
+        radial-gradient(ellipse at top left, rgba(95, 211, 140, 0.05), transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(217, 139, 176, 0.04), transparent 60%),
+        var(--bg-surface);
+      padding: 2rem 1.25rem 1.25rem;
+      margin: 1.25rem 0 0;
+      position: relative;
+    }
+    .diagram::before {
+      content: ''; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(95, 211, 140, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(95, 211, 140, 0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      border-radius: 0.4rem;
+      mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    }
+    .diagram svg { position: relative; z-index: 1; }
+    .diagram svg { width: 100%; height: auto; display: block; }
+    .diagram .legend {
+      display: flex; flex-wrap: wrap; gap: 1.25rem;
+      justify-content: center; margin-top: 1rem;
+      font-family: var(--font-mono); font-size: 0.64rem;
+      color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .diagram .legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
+    .diagram .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
 
-  /* Code blocks */
-  pre {
-    background: var(--bg-surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0.25rem;
-    padding: 0.85rem 1.1rem;
-    overflow-x: auto;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    line-height: 1.7;
-    margin: 0.9rem 0;
-  }
-  pre .c { color: var(--text-muted); }
-  pre .k { color: var(--text-bright); }
-  pre .s { color: var(--text); }
-  pre .n { color: var(--text-bright); }
+    /* ============ Primitive cards ============ */
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 1.25rem 0 0; }
+    @media (max-width: 820px) { .grid3 { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 0.35rem;
+      padding: 1.4rem 1.4rem 1.25rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover { border-color: var(--border-strong); }
+    .card .tag {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      font-family: var(--font-mono); font-size: 0.6rem;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--green); font-weight: 500;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid rgba(95, 211, 140, 0.3);
+      border-radius: 0.15rem;
+      background: rgba(95, 211, 140, 0.05);
+      margin-bottom: 0.9rem;
+    }
+    .card.agent .tag { color: var(--green);   border-color: rgba(95,211,140,0.35); background: rgba(95,211,140,0.06); }
+    .card.map .tag   { color: var(--cyan);    border-color: rgba(110,201,215,0.35); background: rgba(110,201,215,0.06); }
+    .card.mcp .tag   { color: var(--magenta); border-color: rgba(217,139,176,0.35); background: rgba(217,139,176,0.06); }
+    .card .icon { float: right; width: 44px; height: 44px; opacity: 0.9; margin: -0.5rem -0.5rem 0 0; }
+    .card.agent .icon { color: var(--green); }
+    .card.map .icon   { color: var(--cyan); }
+    .card.mcp .icon   { color: var(--magenta); }
+    .card .icon svg { width: 100%; height: 100%; }
+    .card h3 {
+      font-family: var(--font-serif); font-weight: 600;
+      font-size: 1rem; letter-spacing: -0.01em;
+      color: var(--text-bright); line-height: 1.25;
+      margin-bottom: 0.5rem;
+    }
+    .card p {
+      font-family: var(--font-text); font-weight: 400;
+      font-size: 0.85rem; line-height: 1.6;
+      color: var(--text); margin-bottom: 0.8rem;
+    }
+    .card ul {
+      margin: 0.5rem 0 0; padding-left: 1rem;
+      font-family: var(--font-mono); font-size: 0.74rem;
+      color: var(--text); list-style: none;
+    }
+    .card ul li { margin-bottom: 0.3rem; padding-left: 0.9rem; position: relative; }
+    .card ul li::before { content: '·'; position: absolute; left: 0; color: var(--text-muted); }
+    .card code { font-family: var(--font-mono); font-size: 0.8em; color: var(--text-bright); }
 
-  /* ============ Primitive grid ============ */
-  .grid3 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1rem;
-    margin: 1.5rem 0;
-  }
-  @media (max-width: 820px) { .grid3 { grid-template-columns: 1fr; } }
-  .card {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    padding: 1.35rem 1.4rem;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .card:hover {
-    border-color: var(--border-strong);
-    background: rgba(255, 255, 255, 0.025);
-  }
-  .card .tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-weight: 500;
-    padding: 0.2rem 0.55rem;
-    border-radius: 0.15rem;
-    margin-bottom: 0.9rem;
-  }
-  .card .tag::before {
-    content: '';
-    width: 6px; height: 6px; border-radius: 50%;
-    display: inline-block;
-  }
-  .card.domain .tag { background: var(--domain-soft); color: var(--domain); border: 1px solid var(--domain-line); }
-  .card.domain .tag::before { background: var(--domain); }
-  .card.agent .tag { background: var(--agent-soft); color: var(--agent); border: 1px solid var(--agent-line); }
-  .card.agent .tag::before { background: var(--agent); }
-  .card.health .tag { background: var(--health-soft); color: var(--health); border: 1px solid var(--health-line); }
-  .card.health .tag::before { background: var(--health); }
+    dl.meta {
+      display: grid; grid-template-columns: 5.5rem 1fr;
+      gap: 0.35rem 1rem;
+      font-family: var(--font-mono); font-size: 0.72rem;
+      margin-top: 1rem; padding-top: 0.9rem;
+      border-top: 1px dashed var(--border);
+    }
+    dl.meta dt {
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.08em; font-size: 0.62rem; padding-top: 0.15rem;
+    }
+    dl.meta dd { color: var(--text-bright); margin: 0; }
 
-  .card h4 {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 0.95rem;
-    line-height: 1.4;
-    color: var(--text-bright);
-    margin-bottom: 0.6rem;
-    letter-spacing: 0;
-    text-wrap: balance;
-  }
-  .card p { font-size: 0.92rem; color: var(--text); margin-bottom: 0.7rem; }
-  .card ul { margin: 0.6rem 0 0; padding-left: 1.1rem; font-size: 0.85rem; color: var(--text-muted); list-style: none; }
-  .card ul li { margin-bottom: 0.3rem; position: relative; padding-left: 0.9rem; }
-  .card ul li::before { content: '·'; position: absolute; left: 0.15rem; color: var(--text-muted); font-size: 1.1em; line-height: 1; }
+    /* ============ Header-box style table (interactions, commands) ============ */
+    table.kv {
+      width: 100%; border-collapse: collapse;
+      border: 1px solid var(--border); border-radius: 0.3rem;
+      background: rgba(255, 255, 255, 0.015); overflow: hidden;
+      font-family: var(--font-mono); font-size: 0.78rem; margin: 1.25rem 0 0;
+    }
+    table.kv th, table.kv td {
+      text-align: left; padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.kv th {
+      font-size: 0.62rem; font-weight: 500;
+      color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    table.kv tr:last-child td { border-bottom: 0; }
+    table.kv td { color: var(--text); }
+    table.kv td strong { color: var(--text-bright); font-weight: 500; }
+    table.kv td code { font-family: var(--font-mono); color: var(--text-bright); font-size: 0.9em; background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 0.05em 0.35em; border-radius: 0.18rem; }
+    .pill {
+      display: inline-block; font-family: var(--font-mono);
+      font-size: 0.6rem; padding: 0.15rem 0.5rem;
+      border-radius: 0.15rem; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .pill.agent { color: var(--green);   border-color: rgba(95,211,140,0.4);  background: rgba(95,211,140,0.07); }
+    .pill.map   { color: var(--cyan);    border-color: rgba(110,201,215,0.4); background: rgba(110,201,215,0.07); }
+    .pill.mcp   { color: var(--magenta); border-color: rgba(217,139,176,0.4); background: rgba(217,139,176,0.07); }
+    .pill.scale { color: var(--amber);   border-color: rgba(255,179,71,0.4);  background: rgba(255,179,71,0.06); }
 
-  dl.meta {
-    display: grid;
-    grid-template-columns: 8rem 1fr;
-    gap: 0.35rem 0.9rem;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    margin: 1rem 0 0;
-    padding: 0.9rem 0 0;
-    border-top: 1px dashed var(--border);
-  }
-  dl.meta dt {
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.62rem;
-    padding-top: 0.15rem;
-  }
-  dl.meta dd { margin: 0; color: var(--text-bright); }
+    /* ============ Worked example ============ */
+    .example {
+      border: 1px solid var(--border); border-radius: 0.35rem;
+      padding: 1.5rem 1.5rem 1.25rem;
+      background: rgba(255, 255, 255, 0.015);
+      margin-top: 1.25rem;
+    }
+    .example h3 {
+      display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+      font-family: var(--font-serif); font-weight: 600;
+      font-size: 1rem; letter-spacing: -0.01em;
+      color: var(--text-bright); margin-bottom: 0.8rem;
+    }
+    .example h3 .sub { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.06em; font-weight: 400; }
+    .example h3 .sub::before { content: none; }
+    .example .setup {
+      font-family: var(--font-mono); font-size: 0.74rem;
+      color: var(--text); background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 0.7rem 0.9rem; border-radius: 0.2rem;
+      margin-bottom: 1rem;
+    }
+    .example .setup code { color: var(--accent); background: transparent; border: none; padding: 0; font-size: 0.95em; }
+    .example .flow {
+      list-style: none; counter-reset: step;
+      font-family: var(--font-text); font-size: 0.85rem; line-height: 1.65;
+    }
+    .example .flow li {
+      position: relative; padding: 0.75rem 0 0.75rem 2.5rem;
+      counter-increment: step;
+      border-bottom: 1px dashed var(--border);
+      color: var(--text);
+    }
+    .example .flow li:last-child { border-bottom: none; }
+    .example .flow li::before {
+      content: counter(step); position: absolute; left: 0; top: 0.8rem;
+      width: 1.6rem; height: 1.6rem; border-radius: 50%;
+      background: rgba(95, 211, 140, 0.06);
+      border: 1px solid rgba(95, 211, 140, 0.3);
+      color: var(--green);
+      font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .example .flow li strong { color: var(--text-bright); font-weight: 500; }
+    .example .flow li code { font-family: var(--font-mono); font-size: 0.82em; color: var(--text-bright); background: rgba(255,255,255,0.03); padding: 0.05em 0.35em; border-radius: 0.2rem; border: 1px solid var(--border); }
 
-  /* Pills */
-  .pill {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    padding: 0.15rem 0.5rem;
-    border-radius: 0.15rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-  }
-  .pill.domain { background: var(--domain-soft); color: var(--domain); border-color: var(--domain-line); }
-  .pill.agent { background: var(--agent-soft); color: var(--agent); border-color: var(--agent-line); }
-  .pill.health { background: var(--health-soft); color: var(--health); border-color: var(--health-line); }
+    /* ============ Callouts ============ */
+    .callout {
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--border-strong);
+      background: rgba(255, 255, 255, 0.02);
+      padding: 0.85rem 1rem;
+      border-radius: 0.15rem;
+      margin: 1.5rem 0 0;
+      font-family: var(--font-text); font-size: 0.85rem; line-height: 1.65;
+      color: var(--text); max-width: 44rem;
+    }
+    .callout.info { border-left-color: var(--cyan); background: rgba(110, 201, 215, 0.05); }
+    .callout.ok   { border-left-color: var(--green); background: rgba(95, 211, 140, 0.05); }
+    .callout.warn { border-left-color: var(--amber); background: rgba(255, 179, 71, 0.05); }
+    .callout strong { color: var(--text-bright); font-weight: 500; }
+    .callout code { font-family: var(--font-mono); font-size: 0.85em; color: var(--text-bright); background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 0.05em 0.35em; border-radius: 0.2rem; }
 
-  /* ============ Diagram ============ */
-  .diagram {
-    background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg) 100%);
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    padding: 2rem 1.5rem 1.25rem;
-    margin: 1.5rem 0;
-  }
-  .diagram svg { width: 100%; height: auto; display: block; }
-  .diagram .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-    justify-content: center;
-    margin-top: 1.25rem;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .diagram .legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
-  .diagram .legend i {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-  }
+    /* ============ Scaling stages ============ */
+    .stages {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 0.55rem; margin: 1.25rem 0 0;
+    }
+    @media (max-width: 820px) { .stages { grid-template-columns: 1fr; } }
+    .stage {
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      border-radius: 0.3rem;
+      padding: 0.9rem 0.9rem 0.85rem;
+      position: relative;
+    }
+    .stage .n {
+      font-family: var(--font-mono); font-size: 0.58rem;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 0.2rem;
+    }
+    .stage .name {
+      font-family: var(--font-serif); font-weight: 600;
+      font-size: 0.9rem; color: var(--text-bright);
+      letter-spacing: -0.01em; margin-bottom: 0.4rem;
+    }
+    .stage .desc { font-family: var(--font-text); font-size: 0.75rem; line-height: 1.55; color: var(--text-muted); }
+    .stage.active {
+      border-color: rgba(255, 179, 71, 0.4);
+      background: linear-gradient(to bottom right, rgba(255,179,71,0.08), transparent 70%), var(--bg-surface);
+    }
+    .stage.active .name { color: var(--amber); }
+    .stage.active .n { color: var(--amber); opacity: 0.85; }
 
-  /* ============ Matrix ============ */
-  table.matrix {
-    width: 100%;
-    border-collapse: collapse;
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    overflow: hidden;
-    font-size: 0.92rem;
-    margin: 1rem 0 1.5rem;
-  }
-  table.matrix th, table.matrix td {
-    text-align: left;
-    padding: 0.8rem 1.1rem;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-  table.matrix th {
-    background: var(--bg-surface);
-    font-family: var(--font-mono);
-    font-weight: 400;
-    font-size: 0.64rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  table.matrix tr:last-child td { border-bottom: 0; }
-  table.matrix td strong { color: var(--text-bright); font-weight: 500; }
-  table.matrix td { color: var(--text); }
+    /* ============ Code blocks ============ */
+    pre {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 0.3rem;
+      padding: 1rem 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem; line-height: 1.65;
+      color: var(--text);
+      overflow-x: auto;
+      margin: 1.25rem 0 0;
+    }
+    pre .c { color: var(--text-muted); }
+    pre .k { color: var(--text-bright); }
+    pre .s { color: var(--text-bright); }
+    pre .f { color: var(--text-bright); }
 
-  /* ============ Tree ============ */
-  .tree {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    padding: 1.2rem 1.5rem;
-    margin: 1rem 0;
-  }
-  .tree .row {
-    display: grid;
-    grid-template-columns: 10rem 1fr;
-    gap: 1rem;
-    align-items: start;
-    padding: 0.75rem 0;
-    border-bottom: 1px dashed var(--border);
-  }
-  .tree .row:last-child { border-bottom: 0; }
-  .tree .label {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 0.68rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .tree .desc { color: var(--text); font-size: 0.92rem; line-height: 1.55; }
-  .tree .desc strong { color: var(--text-bright); font-weight: 500; }
-  .tree .lvl-0 .label { color: var(--domain); }
-  .tree .lvl-1 .label { color: var(--agent); padding-left: 0.8rem; }
-  .tree .lvl-2 .label { color: var(--health); padding-left: 1.6rem; }
+    code.inline {
+      font-family: var(--font-mono); font-size: 0.85em;
+      color: var(--text-bright);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      padding: 0.05em 0.35em;
+      border-radius: 0.2rem;
+    }
 
-  /* ============ Flow list ============ */
-  .flow-list {
-    margin: 1rem 0 0;
-    padding: 0;
-    list-style: none;
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.015);
-    counter-reset: step;
-  }
-  .flow-list li {
-    padding: 1rem 1.3rem 1.15rem 3.4rem;
-    border-bottom: 1px solid var(--border);
-    position: relative;
-    counter-increment: step;
-  }
-  .flow-list li:last-child { border-bottom: 0; }
-  .flow-list li::before {
-    content: counter(step);
-    position: absolute;
-    left: 1.1rem;
-    top: 1.1rem;
-    width: 1.55rem;
-    height: 1.55rem;
-    border-radius: 50%;
-    background: transparent;
-    border: 1px solid var(--border-strong);
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .flow-list .name {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 0.95rem;
-    color: var(--text-bright);
-    letter-spacing: 0;
-  }
-  .flow-list .desc { color: var(--text-muted); font-size: 0.88rem; margin: 0.3rem 0 0.1rem; }
-  .flow-list pre { margin: 0.6rem 0 0; }
+    /* ============ Patterns block ============ */
+    .patterns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin: 1.25rem 0 0; }
+    @media (max-width: 900px) { .patterns { grid-template-columns: 1fr; } }
+    .pattern {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 0.3rem;
+      padding: 1rem 1rem 0.9rem;
+    }
+    .pattern .label {
+      font-family: var(--font-mono); font-size: 0.6rem;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 0.25rem;
+    }
+    .pattern h4 {
+      font-family: var(--font-serif); font-weight: 600;
+      font-size: 0.9rem; color: var(--text-bright);
+      margin-bottom: 0.6rem; letter-spacing: -0.01em;
+    }
+    .pattern p { font-family: var(--font-text); font-size: 0.78rem; line-height: 1.6; color: var(--text-muted); margin-bottom: 0.65rem; }
+    .pattern pre { font-size: 0.7rem; padding: 0.75rem 0.9rem; margin-top: 0; }
 
-  /* ============ Callouts ============ */
-  .callout {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border);
-    padding: 0.95rem 1.1rem 0.95rem 2.2rem;
-    border-radius: 0.2rem;
-    margin: 1.25rem 0;
-    font-size: 0.9rem;
-    line-height: 1.7;
-    color: var(--text);
-    position: relative;
-  }
-  .callout::before {
-    content: '>';
-    position: absolute;
-    left: 0.85rem;
-    top: 0.9rem;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-  .callout strong { color: var(--text-bright); font-weight: 500; }
-  .callout.note,
-  .callout.teal,
-  .callout.blue {
-    background: rgba(255, 255, 255, 0.02);
-    border-color: var(--border);
-  }
+    /* ============ Accordion ============ */
+    .accordion { margin-top: 1.25rem; }
+    details {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border);
+      border-radius: 0.25rem;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.45rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    details[open] { background: rgba(255, 255, 255, 0.025); border-color: var(--border-strong); }
+    summary {
+      font-family: var(--font-serif); font-weight: 500;
+      font-size: 0.9rem; color: var(--text-bright);
+      letter-spacing: -0.005em;
+      list-style: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      content: "+";
+      font-family: var(--font-mono); font-size: 0.8rem;
+      color: var(--text-muted);
+      border: 1px solid var(--border); padding: 0.1rem 0.45rem;
+      border-radius: 0.15rem; transition: all 0.15s;
+    }
+    details[open] summary::after { content: "−"; color: var(--text-bright); border-color: var(--border-strong); }
+    details .body {
+      margin-top: 0.75rem; padding-top: 0.75rem;
+      border-top: 1px dashed var(--border);
+      font-family: var(--font-text); font-weight: 400;
+      font-size: 0.82rem; line-height: 1.7; color: var(--text);
+    }
+    details .body p { margin-bottom: 0.65rem; }
+    details .body p:last-child { margin-bottom: 0; }
+    details .body code { font-family: var(--font-mono); font-size: 0.85em; color: var(--text-bright); background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 0.05em 0.35em; border-radius: 0.2rem; }
+    details .body em { color: var(--text-bright); font-style: normal; }
 
-  /* ============ Details / accordion ============ */
-  details {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    padding: 0.95rem 1.15rem;
-    margin-bottom: 0.5rem;
-    transition: border-color 0.15s;
-  }
-  details[open] { border-color: var(--border-strong); }
-  summary {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 0.93rem;
-    color: var(--text-bright);
-    list-style: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    letter-spacing: 0;
-  }
-  summary::-webkit-details-marker { display: none; }
-  summary::after {
-    content: '+';
-    font-family: var(--font-mono);
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    font-weight: 400;
-    margin-left: 1rem;
-  }
-  details[open] summary::after { content: '−'; }
-  details .body {
-    padding-top: 0.8rem;
-    font-size: 0.95rem;
-    color: var(--text);
-    line-height: 1.65;
-  }
-  details .body p { margin-bottom: 0.7rem; }
+    /* ============ Footer ============ */
+    footer.site-footer {
+      margin-top: auto; border-top: 1px solid var(--border);
+      padding: 2rem 0;
+    }
+    footer.site-footer .wrap {
+      max-width: var(--max-width); margin: 0 auto; padding: 0 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 1rem; flex-wrap: wrap;
+      font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);
+    }
+    footer.site-footer a { color: var(--text-muted); }
+    footer.site-footer a:hover { color: var(--accent); }
 
-  /* ============ Patterns ============ */
-  .pattern-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 0.85rem;
-    margin: 1.25rem 0 0.5rem;
-  }
-  @media (max-width: 820px) { .pattern-grid { grid-template-columns: 1fr; } }
-  .pattern {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    padding: 1.1rem 1.25rem;
-  }
-  .pattern h4 {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 0.92rem;
-    color: var(--text-bright);
-    margin-bottom: 0.2rem;
-    letter-spacing: 0;
-  }
-  .pattern h4 em { font-style: normal; color: inherit; }
-  .pattern .sub {
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 0.85rem;
-  }
-  .pattern pre {
-    background: var(--bg);
-    font-size: 0.72rem;
-    padding: 0.7rem 0.85rem;
-    line-height: 1.6;
-    margin: 0;
-  }
-  .pattern .result {
-    margin-top: 0.8rem;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    letter-spacing: 0.04em;
-  }
-  .pattern .result::before { content: '→ '; opacity: 0.7; }
-
-  /* ============ Evolution scale ============ */
-  .scale {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.6rem;
-    margin: 1.5rem 0 0.5rem;
-    position: relative;
-  }
-  @media (max-width: 820px) { .scale { grid-template-columns: 1fr 1fr; } }
-  .stage {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.3rem;
-    padding: 0.9rem 0.95rem 1rem;
-    position: relative;
-  }
-  .stage .n {
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  .stage .name {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    margin: 0.3rem 0 0.4rem;
-    font-size: 0.95rem;
-    color: var(--text-bright);
-    letter-spacing: 0;
-  }
-  .stage .detail {
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    line-height: 1.55;
-  }
-
-  /* ============ Integrations ============ */
-  .integrations {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin: 1.25rem 0;
-  }
-  @media (max-width: 820px) { .integrations { grid-template-columns: 1fr; } }
-  .integ-card {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid var(--border);
-    border-radius: 0.35rem;
-    padding: 1.4rem 1.5rem;
-  }
-  .integ-card .header {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 0.85rem;
-    flex-wrap: wrap;
-  }
-  .integ-card h4 {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 0.95rem;
-    color: var(--text-bright);
-    letter-spacing: 0;
-    margin: 0;
-  }
-  .integ-card p { font-size: 0.95rem; color: var(--text); }
-  .integ-card ul { margin: 0.7rem 0 0; padding-left: 0; font-size: 0.88rem; color: var(--text); list-style: none; }
-  .integ-card ul li { margin-bottom: 0.4rem; padding-left: 1rem; position: relative; }
-  .integ-card ul li::before { content: '·'; position: absolute; left: 0.1rem; color: var(--text-muted); font-size: 1.1em; line-height: 1; }
-
-  /* ============ Footer ============ */
-  footer.site-footer {
-    margin-top: auto;
-    border-top: 1px solid var(--border);
-    padding: 1.75rem 0;
-  }
-  footer.site-footer .wrap {
-    max-width: var(--max-width);
-    margin: 0 auto;
-    padding: 0 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    letter-spacing: 0.04em;
-  }
-  footer.site-footer a { color: var(--text-muted); }
-  footer.site-footer a:hover { color: var(--accent); }
-  footer.site-footer .links { display: flex; gap: 1.1rem; flex-wrap: wrap; }
-
-  /* ============ Responsive ============ */
-  @media (max-width: 820px) {
-    main.shell { padding: 2rem 1.25rem 3rem; }
-    .tree .row { grid-template-columns: 1fr; }
-  }
-</style>
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  </style>
 </head>
 <body>
 
 <nav class="site-nav">
   <div class="wrap">
-    <a class="brand" href="#top"><span>domain-agents</span><span class="slash">/</span><span>docs</span></a>
+    <a class="brand" href="#top"><span class="dot"></span>domain-agents<span style="color: var(--text-muted); font-weight: 400;">@v0.1</span></a>
     <div class="links">
-      <a href="#why">why</a>
-      <a href="#primitives">primitives</a>
-      <a href="#discovery">discovery</a>
-      <a href="#integrations">integrations</a>
-      <a href="#quickstart">quickstart</a>
-      <a href="https://github.com/jonnonz1/domain-agents" target="_blank" rel="noopener">github ↗</a>
+      <a href="#outputs">Outputs</a>
+      <a href="#discovery">Discovery</a>
+      <a href="#stages">Stages</a>
+      <a href="#commands">CLI</a>
+      <a href="https://github.com/jonnonz1/domain-agents">GitHub</a>
     </div>
   </div>
 </nav>
 
 <main class="shell" id="top">
 
-  <!-- Masthead -->
-  <header class="masthead">
-    <div class="mh-eyebrow">
-      <span class="dot"></span>
-      <span>domain-agents · evolutionary architecture</span>
-      <span class="sep"></span>
-      <span>v0.1.4 · mit</span>
+  <!-- MASTHEAD -->
+  <section class="masthead">
+    <div class="mh-left">
+      <div class="mh-eyebrow">
+        <span class="dot"></span>
+        <span>Domain-Agents · Evolutionary architecture</span>
+        <span class="sep"></span>
+        <span>v0.1</span>
+      </div>
+      <h1>Domain agents, system maps, and MCP.<span class="cursor" aria-hidden="true"></span></h1>
+      <p class="dek">Three outputs that together give an AI coding agent the context it needs to build for today and evolve tomorrow. This is the shape: what each one is, how they relate, and how to reason about them.</p>
+      <div class="mh-cta">
+        <a class="primary" href="#quick-start">quick-start</a>
+        <a href="https://github.com/jonnonz1/domain-agents">github</a>
+        <a href="https://www.npmjs.com/package/domain-agents">npm</a>
+      </div>
+      <div class="mh-stats">
+        <div><b>5</b>discovery passes</div>
+        <div><b>3</b>outputs</div>
+        <div><b>5</b>scaling stages</div>
+        <div><b>180</b>tests passing</div>
+      </div>
     </div>
-
-    <h1>Give AI the map of your codebase it never had.</h1>
-    <p class="dek">A CLI that discovers the real business domains inside a TypeScript or Node codebase by static analysis, then writes the agent files your AI tools need to reason inside them. Boundaries, contracts, tech debt, scaling triggers — grounded in the code, not a whiteboard.</p>
-
-    <div class="hero-actions">
-      <a class="btn primary" href="#quickstart">Quick start →</a>
-      <a class="btn ghost" href="https://github.com/jonnonz1/domain-agents" target="_blank" rel="noopener">GitHub ↗</a>
-      <a class="btn ghost" href="https://www.npmjs.com/package/domain-agents" target="_blank" rel="noopener">npm ↗</a>
+    <div class="crt" aria-hidden="true">
+      <div class="screen">
+<span class="dim">┌─ domain-agents@v0.1 ─────┐</span><br>
+<span class="prompt">$</span> domain-agents discover .<br>
+<span class="dim">  scanning 142 files...</span><br>
+<span class="ok">✓</span> structure &nbsp; <span class="dim">3 dirs</span><br>
+<span class="ok">✓</span> imports &nbsp;&nbsp; <span class="dim">847 edges</span><br>
+<span class="ok">✓</span> naming &nbsp;&nbsp;&nbsp;<span class="dim">6 clusters</span><br>
+<span class="ok">✓</span> deps &nbsp;&nbsp;&nbsp;&nbsp; <span class="dim">4 services</span><br>
+<span class="ok">✓</span> interfaces <span class="dim">8 boundaries</span><br>
+<br>
+<span class="dim">proposed:</span><br>
+&nbsp;▸ auth &nbsp;&nbsp;&nbsp;<span class="dim">94%</span><br>
+&nbsp;▸ billing <span class="dim">89%</span><br>
+&nbsp;▸ email &nbsp;&nbsp;<span class="dim">91%</span><br>
+&nbsp;▸ users &nbsp;&nbsp;<span class="dim">86%</span><br>
+<br>
+<span class="prompt">$</span> <span class="blink"></span>
+      </div>
     </div>
+  </section>
 
-    <div class="mh-stats">
-      <div><b>5</b> analysis passes</div>
-      <div><b>3</b> AI tool integrations</div>
-      <div><b>180+</b> tests against real fixtures</div>
-      <div><b>Node ≥20</b> typescript · javascript</div>
-    </div>
-  </header>
-
-  <!-- Sticky TOC -->
-  <nav class="toc" aria-label="Section navigation">
-    <a href="#why">01 · why</a>
-    <a href="#primitives">02 · primitives</a>
-    <a href="#discovery">03 · discovery</a>
-    <a href="#patterns">04 · patterns</a>
-    <a href="#integrations">05 · integrations</a>
-    <a href="#evolution">06 · evolution</a>
-    <a href="#health">07 · health</a>
-    <a href="#quickstart">08 · quickstart</a>
-    <a href="#commands">09 · commands</a>
-    <a href="#principles">10 · principles</a>
-    <a href="#faq">11 · faq</a>
-  </nav>
-
-  <!-- At a glance -->
-  <section id="overview">
+  <!-- WHY -->
+  <section id="why">
     <div class="section-bar">
-      <span class="sb-num">00</span>
-      <span class="sb-label">At <em>a glance</em></span>
-      <span class="sb-hint">the shape of the thing</span>
+      <div class="sb-num">01</div>
+      <div class="sb-label">Why — <em>building is cheap, scaling is the new hard part</em></div>
+      <div class="sb-count">thesis</div>
+    </div>
+    <div class="prose">
+      <p>AI has collapsed the cost of building software. MVPs are cheap. But when the product takes off, the codebase hits a wall — AI-generated code optimizes for <em>now</em>, not for scale.</p>
+      <p>The traditional answer is <em>"rewrite it properly."</em> The better answer is <strong>evolutionary architecture</strong>: structure the system so each domain can evolve independently when the data says it's time. Domain Agents replicates, for AI-assisted development, the pattern that already works for engineering organisations — teams own domains, communicate through interfaces, and make independent decisions inside their boundaries.</p>
+    </div>
+    <div class="callout info">
+      <strong>The bet.</strong> Interfaces are the architecture. Implementations are the current stage. When you carry that discipline into the files your AI agents read, every feature either strengthens the boundary or surfaces a reason to move the line.
+    </div>
+  </section>
+
+  <!-- AT A GLANCE -->
+  <section id="at-a-glance">
+    <div class="section-bar">
+      <div class="sb-num">02</div>
+      <div class="sb-label">At a glance — <em>how the pieces fit</em></div>
+      <div class="sb-count">diagram</div>
+    </div>
+    <div class="prose">
+      <p>A single discovery pass over your codebase produces three artefacts. Each one is consumed differently — by humans, by AI editors, and by tool-calling agents.</p>
     </div>
 
-    <div class="diagram">
-      <svg viewBox="0 0 880 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing how a codebase flows through discovery into domains, agent files, and integrations">
+    <div class="diagram" aria-label="Relationships between codebase, discovery, agent files, system map, and MCP server">
+      <svg viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#bfc8d2"/>
+            <path d="M0,0 L10,5 L0,10 z" fill="#c9d1c9"/>
           </marker>
-          <marker id="arrH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d7b8a"/>
+          <marker id="arrGold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#ffb347"/>
           </marker>
           <marker id="arrDash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#566a7c"/>
+            <path d="M0,0 L10,5 L0,10 z" fill="#7a7a7a"/>
           </marker>
         </defs>
 
         <!-- Codebase -->
-        <rect x="340" y="20" width="200" height="62" rx="10" fill="#141f2e" stroke="#bfc8d2" stroke-width="1.2"/>
-        <text x="440" y="44" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500" fill="#566a7c" letter-spacing="2">CODEBASE</text>
-        <text x="440" y="65" text-anchor="middle" font-family="'Fraunces', serif" font-size="14" font-weight="400" fill="#e4e9ee">TypeScript / Node source</text>
+        <g>
+          <rect x="20" y="130" width="210" height="90" rx="4" fill="#111614" stroke="rgba(255,255,255,0.2)"/>
+          <text x="125" y="158" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" fill="#c9d1c9">CODEBASE</text>
+          <text x="125" y="183" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="#eaf3ea">TS / Node repo</text>
+          <text x="125" y="203" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#9aa89a">src/ · package.json · tsconfig</text>
+        </g>
 
-        <!-- Domains -->
-        <rect x="40" y="140" width="290" height="140" rx="12" fill="rgba(126,184,168,0.06)" stroke="#7eb8a8" stroke-width="1.2"/>
-        <text x="62" y="166" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500" fill="#7eb8a8" letter-spacing="2">DOMAINS</text>
-        <text x="62" y="192" font-family="'Fraunces', serif" font-size="15" font-weight="500" fill="#e4e9ee">The business seams in the code</text>
-        <text x="62" y="217" font-family="'JetBrains Mono', monospace" font-size="11" fill="#bfc8d2">auth · billing · email · journals</text>
-        <text x="62" y="235" font-family="'JetBrains Mono', monospace" font-size="11" fill="#bfc8d2">bank-accounts · permissions</text>
-        <text x="62" y="262" font-family="'Fraunces', serif" font-style="italic" font-size="11" fill="#566a7c">Found by 5 analysis passes · confidence scored</text>
+        <!-- Discovery -->
+        <g>
+          <rect x="275" y="130" width="210" height="90" rx="4" fill="#1a1610" stroke="rgba(255,179,71,0.5)"/>
+          <text x="380" y="158" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" fill="#ffb347">DISCOVERY</text>
+          <text x="380" y="183" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="#eaf3ea">5 analysis passes</text>
+          <text x="380" y="202" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#ffb347">structure · imports · naming</text>
+          <text x="380" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#ffb347">deps · interfaces</text>
+        </g>
 
-        <!-- Agents -->
-        <rect x="550" y="140" width="290" height="140" rx="12" fill="rgba(212,168,83,0.06)" stroke="#d4a853" stroke-width="1.2"/>
-        <text x="572" y="166" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500" fill="#d4a853" letter-spacing="2">AGENT FILES</text>
-        <text x="572" y="192" font-family="'Fraunces', serif" font-size="15" font-weight="500" fill="#e4e9ee">Per-domain context for AI tools</text>
-        <text x="572" y="217" font-family="'JetBrains Mono', monospace" font-size="11" fill="#bfc8d2">Purpose · Interfaces · Tech debt</text>
-        <text x="572" y="235" font-family="'JetBrains Mono', monospace" font-size="11" fill="#bfc8d2">Observability · Scaling triggers</text>
-        <text x="572" y="262" font-family="'Fraunces', serif" font-style="italic" font-size="11" fill="#566a7c">agents/&lt;domain&gt;.md · AGENTS.md system map</text>
+        <!-- Agent files -->
+        <g>
+          <rect x="520" y="30" width="180" height="88" rx="4" fill="#0f1714" stroke="rgba(95,211,140,0.45)"/>
+          <text x="610" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" fill="#5fd38c">AGENT FILES</text>
+          <text x="610" y="80" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="#eaf3ea">agents/&lt;domain&gt;.md</text>
+          <text x="610" y="100" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#5fd38c">interfaces · debt · triggers</text>
+        </g>
 
-        <!-- Integrations -->
-        <rect x="180" y="350" width="520" height="122" rx="12" fill="rgba(61,123,138,0.08)" stroke="#3d7b8a" stroke-width="1.2"/>
-        <text x="202" y="376" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500" fill="#3d7b8a" letter-spacing="2">AI TOOL INTEGRATIONS &amp; HEALTH</text>
-        <text x="202" y="402" font-family="'Fraunces', serif" font-size="15" font-weight="500" fill="#e4e9ee">Glob-activated rules, MCP server, CI health checks</text>
-        <text x="202" y="426" font-family="'JetBrains Mono', monospace" font-size="11" fill="#bfc8d2">Claude Code · Cursor · Model Context Protocol · GitHub Actions</text>
-        <text x="202" y="449" font-family="'Fraunces', serif" font-style="italic" font-size="11" fill="#566a7c">Auto-loads the right domain when you edit · fails PRs on drift</text>
+        <!-- System Map -->
+        <g>
+          <rect x="520" y="130" width="180" height="88" rx="4" fill="#0f1417" stroke="rgba(110,201,215,0.45)"/>
+          <text x="610" y="156" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" fill="#6ec9d7">SYSTEM MAP</text>
+          <text x="610" y="180" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="#eaf3ea">AGENTS.md</text>
+          <text x="610" y="200" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#6ec9d7">graph · contracts · rules</text>
+        </g>
 
-        <!-- Edges -->
-        <path d="M 380 80 Q 320 110 210 140" stroke="#566a7c" stroke-width="1.1" stroke-dasharray="4,4" fill="none" marker-end="url(#arrDash)"/>
-        <text x="225" y="120" font-family="'JetBrains Mono', monospace" font-size="10" fill="#566a7c">discover</text>
+        <!-- MCP server -->
+        <g>
+          <rect x="520" y="230" width="180" height="88" rx="4" fill="#151114" stroke="rgba(217,139,176,0.45)"/>
+          <text x="610" y="256" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" fill="#d98bb0">MCP SERVER</text>
+          <text x="610" y="280" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="#eaf3ea">on-demand context</text>
+          <text x="610" y="300" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#d98bb0">domain_lookup · domain_context</text>
+        </g>
 
-        <path d="M 500 80 Q 580 110 690 140" stroke="#566a7c" stroke-width="1.1" stroke-dasharray="4,4" fill="none" marker-end="url(#arrDash)"/>
-        <text x="615" y="120" font-family="'JetBrains Mono', monospace" font-size="10" fill="#566a7c">enrich (optional)</text>
+        <!-- Consumers -->
+        <g>
+          <rect x="760" y="130" width="120" height="90" rx="4" fill="#0e1512" stroke="rgba(255,255,255,0.18)" stroke-dasharray="4 3"/>
+          <text x="820" y="158" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" fill="#9aa89a">CONSUMERS</text>
+          <text x="820" y="180" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#eaf3ea">Claude Code</text>
+          <text x="820" y="198" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#eaf3ea">Cursor</text>
+          <text x="820" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#9aa89a">humans · CI</text>
+        </g>
 
-        <path d="M 330 210 L 550 210" stroke="#bfc8d2" stroke-width="1.2" fill="none" marker-end="url(#arr)"/>
-        <rect x="372" y="196" width="138" height="28" rx="4" fill="#0c1520" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <text x="441" y="215" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="500" fill="#e4e9ee">generate one per domain</text>
+        <!-- Arrows -->
+        <line x1="230" y1="175" x2="273" y2="175" stroke="#ffb347" stroke-width="1.6" marker-end="url(#arrGold)"/>
+        <path d="M485,160 C500,100 505,80 520,74" fill="none" stroke="#5fd38c" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="485" y1="175" x2="518" y2="175" stroke="#6ec9d7" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M485,195 C500,250 505,270 520,274" fill="none" stroke="#d98bb0" stroke-width="1.5" marker-end="url(#arr)"/>
+        <path d="M700,74 C740,80 750,130 760,150" fill="none" stroke="#7a7a7a" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arrDash)"/>
+        <line x1="700" y1="175" x2="758" y2="175" stroke="#7a7a7a" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arrDash)"/>
+        <path d="M700,274 C740,270 750,220 760,200" fill="none" stroke="#7a7a7a" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arrDash)"/>
 
-        <path d="M 220 280 Q 220 326 290 350" stroke="#3d7b8a" stroke-width="1.3" fill="none" marker-end="url(#arrH)"/>
-        <text x="130" y="322" font-family="'JetBrains Mono', monospace" font-size="10" fill="#3d7b8a" font-weight="500">boundaries · coupling</text>
-
-        <path d="M 660 280 Q 660 326 590 350" stroke="#3d7b8a" stroke-width="1.3" fill="none" marker-end="url(#arrH)"/>
-        <text x="678" y="322" font-family="'JetBrains Mono', monospace" font-size="10" fill="#3d7b8a" font-weight="500">context · globs · MCP</text>
+        <text x="252" y="168" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#ffb347" letter-spacing="0.5">scan</text>
+        <text x="730" y="125" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#9aa89a">read / query</text>
       </svg>
       <div class="legend">
-        <span><i style="background:#141f2e; border:1px solid #bfc8d2"></i>Codebase</span>
-        <span><i style="background:rgba(126,184,168,0.3); border:1px solid #7eb8a8"></i>Domain</span>
-        <span><i style="background:rgba(212,168,83,0.3); border:1px solid #d4a853"></i>Agent file</span>
-        <span><i style="background:rgba(61,123,138,0.3); border:1px solid #3d7b8a"></i>Integration</span>
+        <span><i style="background:#ffb347"></i>Discovery</span>
+        <span><i style="background:#5fd38c"></i>Agent files</span>
+        <span><i style="background:#6ec9d7"></i>System map</span>
+        <span><i style="background:#d98bb0"></i>MCP server</span>
       </div>
     </div>
   </section>
 
-  <!-- Why -->
-  <section id="why">
+  <!-- OUTPUTS -->
+  <section id="outputs">
     <div class="section-bar">
-      <span class="sb-num">01</span>
-      <span class="sb-label">Why <em>this exists</em></span>
-      <span class="sb-hint">the thesis</span>
+      <div class="sb-num">03</div>
+      <div class="sb-label">The three outputs — <em>what each artefact is, quickly</em></div>
+      <div class="sb-count">03 / 03</div>
     </div>
-
-    <p class="lead">AI has collapsed the cost of building software. MVPs are cheap. But when the product takes off, the codebase hits a wall — AI-generated code optimises for <em>now</em>, not for scale. Worse, every new prompt lands without context: the assistant doesn't know which seams are real, which modules are hotspots, which files are fragile.</p>
-
-    <p>The traditional answer is "rewrite it properly". The better answer is <strong>evolutionary architecture</strong>: structure the system so each domain can evolve independently when the data says it's time, and give every AI agent editing the code the same map of those domains.</p>
-
-    <div class="callout blue">
-      <strong>The claim.</strong> If AI is going to write most of the code, the most valuable thing a human can give it is not more prompts. It is a durable, machine-readable description of the <em>shape</em> of the system: where the seams are, what each seam owns, what it consumes, and when it should evolve.
-    </div>
-
-    <div class="callout note">
-      <strong>What this is not.</strong> Not a code generator. Not a linter. Not "microservices in a box". It is a static analyser that produces context — agent files, rules, an MCP server — so the tools already editing your code can reason correctly about where they are.
-    </div>
-  </section>
-
-  <!-- Primitives -->
-  <section id="primitives">
-    <div class="section-bar">
-      <span class="sb-num">02</span>
-      <span class="sb-label">Three <em>primitives</em></span>
-      <span class="sb-hint">the vocabulary</span>
-    </div>
-
-    <p>Everything the tool produces fits into one of three shapes. These are the words you'll see in every command, every output file, and every integration.</p>
 
     <div class="grid3">
-      <div class="card domain">
-        <div class="tag">Domain</div>
-        <h4>A business seam found in the code</h4>
-        <p>A cluster of files that work together: a feature directory, a set of <code>auth.*</code>-named layer files, or a spread of bank-account code across <code>lib/</code>, <code>components/</code>, <code>app/api/</code>.</p>
-        <ul>
-          <li>auth (74% confidence)</li>
-          <li>billing · uses <code>stripe</code></li>
-          <li>journals (52 files, layered)</li>
-        </ul>
-        <dl class="meta">
-          <dt>Output</dt><dd><code>proposal.json</code></dd>
-          <dt>Signals</dt><dd>5 passes combined</dd>
-          <dt>Lives in</dt><dd><code>.domain-agents/</code></dd>
-        </dl>
-      </div>
-
       <div class="card agent">
-        <div class="tag">Agent file</div>
-        <h4>Per-domain context for AI tools</h4>
-        <p>Markdown with a specific shape: purpose, what it exposes and consumes, tech debt register, observability gaps, scaling stage, and an evolution path. Optionally LLM-enriched from the real code.</p>
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square">
+            <rect x="8" y="6" width="28" height="34" rx="1"/>
+            <rect x="12" y="2" width="28" height="34" rx="1" opacity="0.5"/>
+            <line x1="14" y1="14" x2="30" y2="14"/>
+            <line x1="14" y1="20" x2="30" y2="20"/>
+            <line x1="14" y1="26" x2="24" y2="26"/>
+            <circle cx="36" cy="38" r="4" fill="currentColor"/>
+          </svg>
+        </div>
+        <span class="tag">Agent files</span>
+        <h3>Per-domain context, AI-ready</h3>
+        <p>One Markdown file per business domain. Holds the complete working picture an agent needs when it edits code inside those boundaries.</p>
         <ul>
-          <li><code>agents/&lt;domain&gt;.md</code></li>
-          <li><code>AGENTS.md</code> system map</li>
-          <li><code>--enrich</code> for real descriptions</li>
+          <li>Purpose and ownership</li>
+          <li>Exposed + consumed interfaces</li>
+          <li>Tech debt register</li>
+          <li>Observability + scaling triggers</li>
+          <li>Evolution path</li>
         </ul>
         <dl class="meta">
-          <dt>Output</dt><dd>Markdown</dd>
-          <dt>Sections</dt><dd>Purpose · Interfaces · Debt · Evolution</dd>
-          <dt>Refresh</dt><dd>Re-run <code>init</code></dd>
+          <dt>Location</dt><dd><code>agents/&lt;domain&gt;.md</code></dd>
+          <dt>Shape</dt><dd>Markdown, tool-agnostic</dd>
+          <dt>Owner</dt><dd>The domain itself</dd>
         </dl>
       </div>
 
-      <div class="card health">
-        <div class="tag">Health &amp; Integration</div>
-        <h4>The feedback loop that keeps it honest</h4>
-        <p>Glob-activated rules for Claude Code and Cursor, an MCP server for on-demand queries, and a <code>health</code> command that fails CI when the map drifts from the code.</p>
+      <div class="card map">
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square">
+            <circle cx="24" cy="10" r="4" fill="currentColor"/>
+            <circle cx="10" cy="30" r="4" fill="currentColor"/>
+            <circle cx="38" cy="30" r="4" fill="currentColor"/>
+            <circle cx="24" cy="40" r="3"/>
+            <line x1="24" y1="14" x2="12" y2="28"/>
+            <line x1="24" y1="14" x2="36" y2="28"/>
+            <line x1="12" y1="32" x2="22" y2="39"/>
+            <line x1="36" y1="32" x2="26" y2="39"/>
+          </svg>
+        </div>
+        <span class="tag">System map</span>
+        <h3>The org chart of the code</h3>
+        <p>A single root document that binds the agent files together: dependency graph, cross-domain contracts, architecture rules, and maturity stages.</p>
         <ul>
-          <li>Auto-loading rules per domain</li>
-          <li>MCP: lookup · context · files</li>
-          <li><code>--ci</code> mode for PR gates</li>
+          <li>All domains and their agents</li>
+          <li>Dependency graph between domains</li>
+          <li>Interface contracts + stability</li>
+          <li>Global architecture rules</li>
         </ul>
         <dl class="meta">
-          <dt>Output</dt><dd>Rules · MCP · exit code</dd>
-          <dt>Detects</dt><dd>New files · coupling · violations · staleness</dd>
-          <dt>Home</dt><dd><code>.claude/ · .cursor/ · CI</code></dd>
+          <dt>Location</dt><dd><code>AGENTS.md</code></dd>
+          <dt>Shape</dt><dd>Markdown + tables + graph</dd>
+          <dt>Owner</dt><dd>The operator</dd>
+        </dl>
+      </div>
+
+      <div class="card mcp">
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square">
+            <rect x="6" y="10" width="36" height="10" rx="1"/>
+            <rect x="6" y="28" width="36" height="10" rx="1"/>
+            <circle cx="12" cy="15" r="1.5" fill="currentColor"/>
+            <circle cx="12" cy="33" r="1.5" fill="currentColor"/>
+            <line x1="18" y1="15" x2="34" y2="15"/>
+            <line x1="18" y1="33" x2="34" y2="33"/>
+            <line x1="24" y1="20" x2="24" y2="28"/>
+          </svg>
+        </div>
+        <span class="tag">MCP server</span>
+        <h3>On-demand domain queries</h3>
+        <p>A Model Context Protocol server so Claude Code and other tool-calling agents can ask for domain context at the moment they need it — no prompt-stuffing required.</p>
+        <ul>
+          <li><code>domain_lookup</code></li>
+          <li><code>domain_context</code></li>
+          <li><code>domain_files</code></li>
+          <li><code>list_domains</code></li>
+        </ul>
+        <dl class="meta">
+          <dt>Transport</dt><dd>stdio (local)</dd>
+          <dt>Runtime</dt><dd>Node</dd>
+          <dt>Auth</dt><dd>none — local only</dd>
         </dl>
       </div>
     </div>
 
-    <div class="callout">
-      <strong>The rule of thumb.</strong> <span class="pill domain">Domain</span> is what the analyser <em>finds</em>. <span class="pill agent">Agent file</span> is what it <em>writes</em>. <span class="pill health">Health &amp; integration</span> is how the result stays connected to the editor and the PR pipeline.
-    </div>
-  </section>
-
-  <!-- Discovery -->
-  <section id="discovery">
-    <div class="section-bar">
-      <span class="sb-num">03</span>
-      <span class="sb-label">How <em>discovery</em> works</span>
-      <span class="sb-hint">five passes, one proposal</span>
-    </div>
-
-    <p>Discovery runs five independent analysis passes, then combines the signals. Each pass can be tested alone, and each one answers a different question about the same codebase.</p>
-
-    <table class="matrix">
+    <table class="kv" aria-label="Interaction matrix">
       <thead>
         <tr>
-          <th style="width: 9rem">Pass</th>
-          <th style="width: 10rem">Signal</th>
-          <th>Question it answers</th>
+          <th style="width: 22%;">Handshake</th>
+          <th>Who does the work</th>
+          <th>Who reads it</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><strong>Structure</strong></td>
-          <td>Directories</td>
-          <td>Is this codebase feature-organised, layer-organised, or mixed? Which directories behave like domain roots?</td>
+          <td><span class="pill agent">Agent</span> → <span class="pill map">Map</span></td>
+          <td>Each agent file declares its ownership and interfaces.</td>
+          <td>The system map aggregates them into one graph.</td>
         </tr>
         <tr>
-          <td><strong>Imports</strong></td>
-          <td>TypeScript AST</td>
-          <td>Which files actually depend on which? Where does the import graph cluster by connectivity? (Type-only imports weight 0.3 vs. 1.0 for value imports.)</td>
+          <td><span class="pill map">Map</span> → <span class="pill agent">Agent</span></td>
+          <td>The map links to each agent and declares global rules.</td>
+          <td>Agents defer to the map for cross-domain policy.</td>
         </tr>
         <tr>
-          <td><strong>Naming</strong></td>
-          <td>File names</td>
-          <td>Do <code>auth.controller.ts</code>, <code>auth.service.ts</code>, <code>auth.routes.ts</code> share a prefix that groups them across layer directories?</td>
+          <td><span class="pill mcp">MCP</span> → <span class="pill agent">Agent</span></td>
+          <td>Serves agent file contents by domain name on demand.</td>
+          <td>AI editors fetch the right file, not the whole repo.</td>
         </tr>
         <tr>
-          <td><strong>Dependencies</strong></td>
-          <td>package.json</td>
-          <td>Does <code>stripe</code> point to billing? Does <code>@sendgrid/mail</code> point to email? Does <code>jsonwebtoken</code> point to auth?</td>
-        </tr>
-        <tr>
-          <td><strong>Interfaces</strong></td>
-          <td>Cross-domain edges</td>
-          <td>Which files are imported by two or more domains? Those are boundary files — and the coupling score tells you how porous the boundary is.</td>
+          <td><span class="pill scale">Health</span> → all</td>
+          <td><code>domain-agents health</code> compares repo vs. agents.</td>
+          <td>CI, humans, and agents pick up drift and coupling.</td>
         </tr>
       </tbody>
     </table>
-
-    <h3>Merging and hotspots</h3>
-    <p>Only <em>leaf singletons</em> — files with no outgoing imports and exactly one consumer domain — get auto-merged during clustering. This prevents aggressive cascading that swallows unrelated domains. Singletons importing from three or more domains are flagged as <strong>hotspots</strong> and sent to unassigned; they usually indicate cross-cutting concerns a human should review.</p>
-
-    <div class="callout teal">
-      <strong>Why five passes, not one.</strong> No single signal is reliable on its own. Directory structure lies in layer-organised codebases. Import graphs miss name-based cousins. Naming is thin in utility folders. Combining weak signals across all five passes — and being explicit about confidence — is what lets the tool handle the messy real-world case without pretending the answer is clean.
-    </div>
   </section>
 
-  <!-- Patterns -->
-  <section id="patterns">
+  <!-- QUICK START -->
+  <section id="quick-start">
     <div class="section-bar">
-      <span class="sb-num">04</span>
-      <span class="sb-label">Three <em>codebase patterns</em></span>
-      <span class="sb-hint">tested against fixtures</span>
+      <div class="sb-num">04</div>
+      <div class="sb-label">Quick start — <em>from zero to enriched agents</em></div>
+      <div class="sb-count">~5 min</div>
     </div>
+<pre><span class="c"># install</span>
+npm install -g domain-agents
 
-    <p>The three patterns below are tested against real fixtures in the repo. The tool produces the same kind of domain map for each — but the passes it leans on vary.</p>
+<span class="c"># 1. Discover domains in your codebase</span>
+domain-agents discover ./my-app
 
-    <div class="pattern-grid">
-      <div class="pattern">
-        <h4>Feature-<em>organised</em></h4>
-        <div class="sub">the easy case</div>
-<pre>src/
-  auth/
-  billing/
-  email/</pre>
-        <div class="result">high-confidence domains (≥94%)</div>
-      </div>
+<span class="c"># 2. Review the proposal, then generate agent files</span>
+domain-agents init ./my-app
 
-      <div class="pattern">
-        <h4>Layer-<em>organised</em></h4>
-        <div class="sub">the hard case · mvc</div>
-<pre>controllers/auth.controller.ts
-services/auth.service.ts
-routes/auth.routes.ts
-middleware/auth.*</pre>
-        <div class="result">naming pass reassembles "auth"</div>
-      </div>
+<span class="c"># 3. (Optional) Use Claude to enrich agent files with real code analysis</span>
+domain-agents setup                       <span class="c"># save your Anthropic API key</span>
+domain-agents init ./my-app --enrich      <span class="c"># generates contextual descriptions</span>
 
-      <div class="pattern">
-        <h4>Mixed · <em>Next.js</em></h4>
-        <div class="sub">the real world</div>
-<pre>lib/services/journal/
-components/journals/
-hooks/use-manual-journals
-app/api/journals/</pre>
-        <div class="result">clustering across folder types</div>
-      </div>
-    </div>
+<span class="c"># 4. Connect to your AI tools</span>
+domain-agents hooks claude ./my-app    <span class="c"># Claude Code: auto-activating rules + MCP</span>
+domain-agents hooks cursor ./my-app    <span class="c"># Cursor: glob-activated .mdc rules</span>
+
+<span class="c"># 5. Check domain health over time</span>
+domain-agents health ./my-app</pre>
   </section>
 
-  <!-- Integrations -->
-  <section id="integrations">
+  <!-- DISCOVERY -->
+  <section id="discovery">
     <div class="section-bar">
-      <span class="sb-num">05</span>
-      <span class="sb-label">Editor &amp; <em>tooling integrations</em></span>
-      <span class="sb-hint">make the context load itself</span>
+      <div class="sb-num">05</div>
+      <div class="sb-label">Discovery — <em>five passes, one proposal</em></div>
+      <div class="sb-count">engine</div>
+    </div>
+    <div class="prose">
+      <p>The discovery engine does not ask you to reorganise your codebase. It analyses the signals that are already there.</p>
     </div>
 
-    <p>Agent files are only useful if the tools editing the code can actually see them at the right moment. The <code>hooks</code> subcommand wires the output into the editors you already use.</p>
-
-    <div class="integrations">
-      <div class="integ-card">
-        <div class="header">
-          <span class="pill agent">Claude Code</span>
-          <h4>Three layers of context</h4>
-        </div>
-        <p>One command installs everything.</p>
-<pre><span class="n">domain-agents</span> hooks claude ./my-app</pre>
-        <ul>
-          <li><strong>Per-domain rule files</strong> (<code>.claude/rules/domain-&lt;name&gt;.md</code>) with <code>globs:</code> frontmatter — Claude Code auto-activates the domain when you edit matching files.</li>
-          <li><strong>MCP server</strong> exposing four tools: <code>domain_lookup</code>, <code>domain_context</code>, <code>domain_files</code>, <code>list_domains</code>.</li>
-          <li><strong>SessionStart hook</strong> that prints a domain summary at the start of each session.</li>
-        </ul>
-      </div>
-
-      <div class="integ-card">
-        <div class="header">
-          <span class="pill domain">Cursor</span>
-          <h4>Glob-activated rule files</h4>
-        </div>
-        <p>Generates <code>.cursor/rules/&lt;domain&gt;.mdc</code> files. Cursor loads the relevant domain rules automatically when you open matching files.</p>
-<pre><span class="n">domain-agents</span> hooks cursor ./my-app</pre>
-        <ul>
-          <li>One <code>.mdc</code> file per domain</li>
-          <li>Glob patterns derived from the proposal</li>
-          <li>Cross-domain dependencies listed in each rule</li>
-        </ul>
-      </div>
-    </div>
+    <table class="kv">
+      <thead>
+        <tr><th style="width: 22%;">Pass</th><th style="width: 22%;">Signal</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>1. Structure</strong></td><td>Directories</td><td>Detects whether the codebase is feature-organised, layer-organised, or mixed. Reads workspace and path alias config.</td></tr>
+        <tr><td><strong>2. Imports</strong></td><td>TypeScript AST</td><td>Uses the TS compiler API to resolve every import, builds the directed dependency graph, and clusters by connectivity.</td></tr>
+        <tr><td><strong>3. Naming</strong></td><td>File names</td><td>Groups <code>auth.controller</code>, <code>auth.service</code>, <code>auth.routes</code> under a shared "auth" identity.</td></tr>
+        <tr><td><strong>4. Dependencies</strong></td><td><code>package.json</code></td><td>Maps <code>stripe</code> → billing, <code>@sendgrid/mail</code> → email, <code>jsonwebtoken</code> → auth. External services become domain hints.</td></tr>
+        <tr><td><strong>5. Interfaces</strong></td><td>Cross-domain edges</td><td>Finds boundary files imported by two or more domains and scores the coupling between them.</td></tr>
+      </tbody>
+    </table>
 
     <div class="callout">
-      <strong>What this feels like in practice.</strong> You say "add a new email service". Claude Code sees you editing files under the email domain, auto-loads <code>domain-email.md</code>, reads that email depends on <code>users</code> and <code>permissions</code>, and consults those domains too via MCP. You didn't paste anything. The context loaded itself.
+      <strong>Note on unowned files.</strong> Utility code (<code>src/utils</code>, <code>src/lib</code>) often belongs to no domain. The proposal flags these rather than forcing them into a cluster — you assign them, or leave them floating until they earn a boundary.
     </div>
   </section>
 
-  <!-- Evolution -->
-  <section id="evolution">
+  <!-- PATTERNS -->
+  <section id="patterns">
     <div class="section-bar">
-      <span class="sb-num">06</span>
-      <span class="sb-label">The <em>evolution path</em></span>
-      <span class="sb-hint">inline → distributed</span>
+      <div class="sb-num">06</div>
+      <div class="sb-label">Codebase patterns — <em>three shapes, one engine</em></div>
+      <div class="sb-count">handles</div>
     </div>
+    <div class="patterns">
+      <div class="pattern">
+        <div class="label">The easy case</div>
+        <h4>Feature-organised</h4>
+        <p>Directory names already map to domains. Confidence is high out of the box.</p>
+<pre>src/auth/      → auth     <span class="c">(96%)</span>
+src/billing/   → billing  <span class="c">(94%)</span>
+src/email/     → email    <span class="c">(99%)</span></pre>
+      </div>
+      <div class="pattern">
+        <div class="label">The hard case</div>
+        <h4>Layer-organised</h4>
+        <p>Business capabilities are split across technical layers. Import graph is the primary signal.</p>
+<pre>controllers/auth.controller.ts ┐
+services/auth.service.ts       ├ auth
+routes/auth.routes.ts          │ <span class="c">(74%)</span>
+middleware/auth.middleware.ts  ┘</pre>
+      </div>
+      <div class="pattern">
+        <div class="label">The real-world case</div>
+        <h4>Mixed / Next.js</h4>
+        <p>Services + components + hooks + routes spread everywhere. Clusters emerge from graph + naming.</p>
+<pre>lib/services/journal/    ┐
+components/journals/     ├ journals
+hooks/use-manual-journal │ <span class="c">(52)</span>
+app/api/journals/        ┘</pre>
+      </div>
+    </div>
+  </section>
 
-    <p>Each agent file records where its domain currently sits on this scale, and what metric would trigger the next step. The point is not to arrive at "distributed" — it is to make the decision <em>observable</em>.</p>
-
-    <div class="scale">
-      <div class="stage">
+  <!-- STAGES -->
+  <section id="stages">
+    <div class="section-bar">
+      <div class="sb-num">07</div>
+      <div class="sb-label">Scaling stages — <em>the interface is the architecture</em></div>
+      <div class="sb-count">5 stages</div>
+    </div>
+    <div class="prose">
+      <p>Every domain sits somewhere on this track. Moving forward is a decision triggered by metrics, not speculation — and in every case the public interface is supposed to survive the move.</p>
+    </div>
+    <div class="stages">
+      <div class="stage active">
         <div class="n">Stage 1</div>
         <div class="name">Inline</div>
-        <div class="detail">Synchronous function calls inside the monolith. Most domains live here forever.</div>
+        <div class="desc">Synchronous, in-process. The default starting point for any domain.</div>
       </div>
       <div class="stage">
         <div class="n">Stage 2</div>
         <div class="name">Async</div>
-        <div class="detail">Fire-and-forget background work, still in-process. Triggered by latency on the critical path.</div>
+        <div class="desc">Fire-and-forget. Good enough when loss is acceptable.</div>
       </div>
       <div class="stage">
         <div class="n">Stage 3</div>
         <div class="name">Queued</div>
-        <div class="detail">Durable queue (BullMQ, SQS, etc.). Triggered by retries, dead letters, or throughput spikes.</div>
+        <div class="desc">Durable queue (BullMQ / SQS). Retries and back-pressure live here.</div>
       </div>
       <div class="stage">
         <div class="n">Stage 4</div>
         <div class="name">Separate service</div>
-        <div class="detail">Own deploy, own repo optional. Triggered by team boundaries or release-cadence divergence.</div>
+        <div class="desc">Own deployment and database. Same interface, different runtime.</div>
       </div>
       <div class="stage">
         <div class="n">Stage 5</div>
         <div class="name">Distributed</div>
-        <div class="detail">Sharded, replicated, regionally placed. Triggered by scale metrics, not aesthetics.</div>
+        <div class="desc">Own infrastructure across regions. A strategic move, not a default.</div>
       </div>
-    </div>
-
-    <div class="callout note">
-      <strong>Start consolidated, split when needed.</strong> You do not need a domain agent per micro-concern from day one. Start with broad agents covering multiple areas. Splits are cheap when the seam is already named and monitored.
     </div>
   </section>
 
-  <!-- Health -->
-  <section id="health">
+  <!-- WORKED -->
+  <section id="worked">
     <div class="section-bar">
-      <span class="sb-num">07</span>
-      <span class="sb-label">Health — <em>keeping the map honest</em></span>
-      <span class="sb-hint">drift detection · ci gates</span>
+      <div class="sb-num">08</div>
+      <div class="sb-label">Worked example — <em>an email agent, proposal to enriched</em></div>
+      <div class="sb-count">6 steps</div>
     </div>
 
-    <p>Discovery produces a proposal. <code>health</code> compares the proposal to the current state of the code and tells you whether the map has drifted. The four categories:</p>
-
-    <div class="tree">
-      <div class="row lvl-0">
-        <div class="label">New files</div>
-        <div class="desc"><strong>Not covered by any domain agent.</strong> Either the file needs assigning to an existing domain, or a new domain should be proposed.</div>
-      </div>
-      <div class="row lvl-1">
-        <div class="label">High coupling</div>
-        <div class="desc"><strong>Cross-domain imports above 30%.</strong> Two domains are leaking into each other; probably one is absorbing the other, or they share a hidden dependency that wants its own domain.</div>
-      </div>
-      <div class="row lvl-2">
-        <div class="label">Boundary violations</div>
-        <div class="desc"><strong>Cross-domain imports that bypass declared interfaces.</strong> Someone reached past the boundary file into an internal module. Fails in <code>--ci</code> mode.</div>
-      </div>
-      <div class="row lvl-0">
-        <div class="label">Staleness</div>
-        <div class="desc"><strong>Domains whose code has changed since the last discovery.</strong> Signal to re-run <code>discover</code> and <code>init</code>.</div>
-      </div>
+    <div class="example">
+      <h3><span class="pill agent">email</span> <span class="sub">async · tech debt: 3 · metrics: 3</span></h3>
+      <div class="setup">A 140-file Next.js SaaS app. Stripe is installed; SendGrid is the provider. No queue yet. Email is called from <code>auth</code> and <code>billing</code>.</div>
+      <ol class="flow">
+        <li><strong>Discovery proposes "email"</strong> with 91% confidence: a <code>src/email</code> directory, 87% internal imports, <code>@sendgrid/mail</code> in deps, and two inbound call sites from other domains.</li>
+        <li><strong>Init generates the scaffold</strong> — <code>agents/email.md</code> with sections for purpose, ownership, interfaces, debt, observability, and stage.</li>
+        <li><strong>Enrichment fills in the body</strong> — Claude reads key files in the domain and rewrites the purpose ("Manages transactional email: delivery, templates, scheduling"), detects the stage as <strong>Async (fire-and-forget)</strong>, and extracts specific debt like "no retry logic" and "provider hardcoded to SendGrid".</li>
+        <li><strong>The system map links it in</strong> — <code>AGENTS.md</code> lists <code>email</code> alongside <code>auth</code> and <code>billing</code>, with a dependency edge from each consumer.</li>
+        <li><strong>Claude Code picks it up</strong> — a <code>.claude/rules/domain-email.md</code> with a <code>globs:</code> header auto-activates the context the moment you edit a file in <code>src/email</code>.</li>
+        <li><strong>Six months later, <code>health</code> flags drift</strong> — 11 new files, coupling with <code>billing</code> is 0.41, one boundary violation. The agent file is stale and the map knows it.</li>
+      </ol>
     </div>
 
-    <h3>CI integration</h3>
-    <p><code>--ci</code> exits non-zero when any of these fire. <code>--json</code> produces machine-readable output for custom tooling.</p>
+    <div class="callout info">
+      <strong>Tech-debt consensus.</strong> When a feature touches <em>email</em> and <em>billing</em>, the tool surfaces both registers together: "add invoice reminder emails" will quietly pull in "no retry logic" from email and "no reminder_sent state" from billing — both, in one view, before the work starts.
+    </div>
+  </section>
 
+  <!-- INTEGRATION -->
+  <section id="integration">
+    <div class="section-bar">
+      <div class="sb-num">09</div>
+      <div class="sb-label">AI tool integration — <em>auto-activating context, not prompt gymnastics</em></div>
+      <div class="sb-count">Claude · Cursor · CI</div>
+    </div>
+
+    <h3 class="sub">Claude Code</h3>
+    <div class="prose"><p><code>domain-agents hooks claude ./my-app</code> installs three layers:</p></div>
+    <table class="kv">
+      <tbody>
+        <tr><td style="width: 30%;"><strong>Per-domain rules</strong></td><td><code>.claude/rules/domain-&lt;name&gt;.md</code> with <code>globs:</code> frontmatter. Editing a file in a domain auto-loads that context; cross-domain dependencies tell Claude to consult siblings via MCP.</td></tr>
+        <tr><td><strong>MCP server</strong></td><td>The four tools (<code>domain_lookup</code>, <code>domain_context</code>, <code>domain_files</code>, <code>list_domains</code>) for on-demand queries.</td></tr>
+        <tr><td><strong>SessionStart hook</strong></td><td>Prints a domain summary at the start of every session so Claude opens with the map, not a blank slate.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout ok">
+      Say "add a new email service". Claude sees you editing email files, auto-loads the email agent, notices it depends on <code>users</code> and <code>permissions</code>, and consults those agents too — without any manual context loading.
+    </div>
+
+    <h3 class="sub">Cursor</h3>
+    <div class="prose"><p><code>domain-agents hooks cursor ./my-app</code> generates <code>.cursor/rules/&lt;domain&gt;.mdc</code> files with glob-based activation. Cursor picks up the right rule when the glob matches the file you're editing.</p></div>
+
+    <h3 class="sub">CI</h3>
 <pre><span class="c"># .github/workflows/domain-health.yml</span>
-<span class="k">name</span>: Domain Health
-<span class="k">on</span>:
-  <span class="k">pull_request</span>:
-    <span class="k">branches</span>: [main]
-<span class="k">permissions</span>:
-  <span class="k">contents</span>: read
-<span class="k">jobs</span>:
-  <span class="k">health</span>:
-    <span class="k">runs-on</span>: ubuntu-latest
-    <span class="k">steps</span>:
-      - <span class="k">uses</span>: actions/checkout@v4
-      - <span class="k">uses</span>: actions/setup-node@v4
-        <span class="k">with</span>: { <span class="k">node-version</span>: <span class="s">'22'</span> }
-      - <span class="k">run</span>: npx domain-agents health --ci .</pre>
+<span class="k">name:</span> Domain Health
+<span class="k">on:</span>
+  <span class="k">pull_request:</span>
+    <span class="k">branches:</span> [main]
+<span class="k">jobs:</span>
+  <span class="k">health:</span>
+    <span class="k">runs-on:</span> ubuntu-latest
+    <span class="k">steps:</span>
+      - <span class="k">uses:</span> actions/checkout@v4
+      - <span class="k">uses:</span> actions/setup-node@v4
+        <span class="k">with:</span>
+          <span class="k">node-version:</span> <span class="s">'22'</span>
+      - <span class="k">run:</span> npx domain-agents health --ci .</pre>
   </section>
 
-  <!-- Quick start -->
-  <section id="quickstart">
-    <div class="section-bar">
-      <span class="sb-num">08</span>
-      <span class="sb-label">Quick <em>start</em></span>
-      <span class="sb-hint">zero to integrated · 5 commands</span>
-    </div>
-
-    <p>From zero to a working, AI-tool-integrated domain map.</p>
-
-    <ol class="flow-list">
-      <li>
-        <div class="name">Install globally</div>
-        <div class="desc">Node 20 or newer. MIT licensed.</div>
-<pre><span class="n">npm</span> install -g domain-agents</pre>
-      </li>
-      <li>
-        <div class="name">Discover domains</div>
-        <div class="desc">Static analysis only; no network. Writes <code>.domain-agents/proposal.json</code> — review before moving on.</div>
-<pre><span class="n">domain-agents</span> discover ./my-app</pre>
-      </li>
-      <li>
-        <div class="name">Generate agent files</div>
-        <div class="desc">Writes <code>agents/&lt;domain&gt;.md</code> and <code>AGENTS.md</code>. Add <code>--enrich</code> to have Claude read the code and produce real descriptions instead of templates.</div>
-<pre><span class="n">domain-agents</span> setup                  <span class="c"># one-time: API key for enrichment</span>
-<span class="n">domain-agents</span> init ./my-app --enrich</pre>
-      </li>
-      <li>
-        <div class="name">Wire up your AI tools</div>
-        <div class="desc">Auto-activating rules plus an MCP server for Claude Code; <code>.mdc</code> rule files for Cursor.</div>
-<pre><span class="n">domain-agents</span> hooks claude ./my-app
-<span class="n">domain-agents</span> hooks cursor ./my-app</pre>
-      </li>
-      <li>
-        <div class="name">Watch for drift</div>
-        <div class="desc">Run locally, or plug into CI on every PR.</div>
-<pre><span class="n">domain-agents</span> health ./my-app        <span class="c"># human-readable report</span>
-<span class="n">domain-agents</span> health --ci ./my-app   <span class="c"># exits non-zero on drift</span></pre>
-      </li>
-    </ol>
-  </section>
-
-  <!-- Commands -->
+  <!-- COMMANDS -->
   <section id="commands">
     <div class="section-bar">
-      <span class="sb-num">09</span>
-      <span class="sb-label">Command <em>reference</em></span>
-      <span class="sb-hint">the cli surface</span>
+      <div class="sb-num">10</div>
+      <div class="sb-label">Commands — <em>the CLI surface</em></div>
+      <div class="sb-count">7</div>
     </div>
-
-    <table class="matrix">
+    <table class="kv">
       <thead>
-        <tr>
-          <th style="width: 38%">Command</th>
-          <th>What it does</th>
-        </tr>
+        <tr><th style="width: 38%;">Command</th><th>Description</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>domain-agents discover &lt;path&gt;</code></td><td>Run the 5-pass analyser and write a proposal to <code>.domain-agents/proposal.json</code>.</td></tr>
-        <tr><td><code>domain-agents show &lt;path&gt;</code></td><td>Visual overview of the proposal in the terminal.</td></tr>
-        <tr><td><code>domain-agents init &lt;path&gt; [--enrich]</code></td><td>Generate <code>agents/*.md</code> and <code>AGENTS.md</code> from the proposal. <code>--enrich</code> uses Claude to write real descriptions.</td></tr>
-        <tr><td><code>domain-agents setup</code></td><td>Save your Anthropic API key to <code>~/.config/domain-agents/config.json</code> for <code>--enrich</code>.</td></tr>
-        <tr><td><code>domain-agents health &lt;path&gt; [--ci] [--json]</code></td><td>Compare the proposal to the live code. Report new files, coupling, boundary violations, staleness.</td></tr>
-        <tr><td><code>domain-agents hooks claude &lt;path&gt;</code></td><td>Install Claude Code integration: auto-activating rules, MCP server, SessionStart hook.</td></tr>
-        <tr><td><code>domain-agents hooks cursor &lt;path&gt;</code></td><td>Generate Cursor <code>.mdc</code> rule files, one per domain, with glob activation.</td></tr>
+        <tr><td><code>domain-agents discover &lt;path&gt;</code></td><td>Analyse the codebase and propose domains.</td></tr>
+        <tr><td><code>domain-agents show &lt;path&gt;</code></td><td>Visual overview of the proposal.</td></tr>
+        <tr><td><code>domain-agents init &lt;path&gt; [--enrich]</code></td><td>Generate agent files and <code>AGENTS.md</code>. <code>--enrich</code> uses Claude to fill in real context.</td></tr>
+        <tr><td><code>domain-agents setup</code></td><td>Save your Anthropic API key for enrichment.</td></tr>
+        <tr><td><code>domain-agents health &lt;path&gt; [--ci] [--json]</code></td><td>Check domain boundaries, coupling, and agent staleness. <code>--ci</code> fails the build on drift.</td></tr>
+        <tr><td><code>domain-agents hooks claude &lt;path&gt;</code></td><td>Install Claude Code integration: auto-activating rules + MCP server + session hook.</td></tr>
+        <tr><td><code>domain-agents hooks cursor &lt;path&gt;</code></td><td>Generate Cursor <code>.mdc</code> rule files with glob activation.</td></tr>
       </tbody>
     </table>
   </section>
 
-  <!-- Principles -->
-  <section id="principles">
+  <!-- DECISIONS -->
+  <section id="decisions">
     <div class="section-bar">
-      <span class="sb-num">10</span>
-      <span class="sb-label">Design <em>principles</em></span>
-      <span class="sb-hint">opinions, held on purpose</span>
+      <div class="sb-num">11</div>
+      <div class="sb-label">Key decisions — <em>why the tool is opinionated where it is</em></div>
+      <div class="sb-count">5</div>
     </div>
 
-    <details open>
-      <summary>Observability is the most important input</summary>
-      <div class="body">
-        <p>Agent files have a strong preference for gathering data. A scaling decision that is not backed by a metric is a guess. Every domain agent is asked to name the metrics that matter, and to flag the ones that are missing — because the first step in evolving a domain is usually "instrument it".</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Tech debt informs feature consensus</summary>
-      <div class="body">
-        <p>When a feature spans multiple domains, each domain's tech debt register is consulted. A change that looks easy in isolation can be expensive once you see that two of the three domains it touches have open debt items in the exact area you're editing. Surfacing that earlier is cheap; discovering it in review is not.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Start consolidated, split when needed</summary>
-      <div class="body">
-        <p>A domain per micro-concern from day one is architecture cosplay. Start with broad domains covering related areas. The signal to split is real — coupling climbs, teams diverge, a subdomain accumulates its own debt — and the tool makes those signals visible. Splits happen when the data says so.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>The operator resolves conflicts</summary>
-      <div class="body">
-        <p>Agents own their domains. But cross-domain decisions — a new interface, a debt trade-off, a scaling trigger — are surfaced to a human. The tool's job is to collapse the search space, not to decide. Hotspots, low-confidence assignments, boundary violations: all sent upward, explicitly.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Clean interfaces, simple code</summary>
-      <div class="body">
-        <p>The codebase itself is direct: each discovery pass is a standalone function; the orchestrator combines signals without over-coupling to any one pass; there are no unnecessary abstractions. Refactors should be possible because the seams are honest, not because a framework promised they would be.</p>
-      </div>
-    </details>
+    <div class="accordion">
+      <details>
+        <summary>Observability is the most important input</summary>
+        <div class="body">
+          <p>Agent files have a strong preference for gathering data. Scaling decisions should be driven by metrics, not speculation — so every agent declares its current instrumentation, its gaps, and the thresholds that would justify evolving to the next stage.</p>
+          <p>When agents build features, they do so with observability in mind: new code paths get instrumented, feature flags include usage tracking, and performance-sensitive paths get latency metrics. The loop is: <em>build → instrument → observe → decide → evolve → build</em>.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Tech debt informs feature consensus</summary>
+        <div class="body">
+          <p>When a feature spans multiple domains, each domain's tech debt register is consulted. If the email domain has a known bottleneck and the feature will increase email volume, the agent surfaces this <em>during planning</em>, not after the incident.</p>
+          <p>The effect: cross-domain work opens with a joined-up view of what's fragile, not just what's required.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Start consolidated, split when needed</summary>
+        <div class="body">
+          <p>You don't need a domain agent per micro-concern on day one. For small codebases (&lt; 50 files) the recommended start is 2–3 broad agents: <code>core</code>, <code>integrations</code>, <code>infrastructure</code>.</p>
+          <p>Split when an agent exceeds ~30–40 files, its debt register covers unrelated concerns, or different parts are at different scaling stages.</p>
+        </div>
+      </details>
+      <details>
+        <summary>The operator resolves conflicts</summary>
+        <div class="body">
+          <p>Agents own their domains, but cross-domain decisions are surfaced for human judgment. The tool makes the trade-offs legible — it does not make them for you.</p>
+        </div>
+      </details>
+      <details>
+        <summary>The interface survives the stage</summary>
+        <div class="body">
+          <p>Every evolution step — inline to async, async to queued, queued to separate service — is meant to be invisible to callers. That's what earns the right to defer the decision: the implementation can move, but the calling code does not. If a stage transition demands an interface change, that's a signal the original interface was wrong, not that the stage is wrong.</p>
+        </div>
+      </details>
+    </div>
   </section>
 
   <!-- FAQ -->
   <section id="faq">
     <div class="section-bar">
-      <span class="sb-num">11</span>
-      <span class="sb-label">FAQ</span>
-      <span class="sb-hint">the usual questions</span>
+      <div class="sb-num">12</div>
+      <div class="sb-label">FAQ — <em>questions worth asking</em></div>
+      <div class="sb-count">6</div>
     </div>
 
-    <details>
-      <summary>Does it need to run my code?</summary>
-      <div class="body">
-        <p>No. All five discovery passes are static. The only network call is optional LLM enrichment via <code>--enrich</code>, which reads a handful of representative files per domain and sends them to Claude to produce contextual descriptions. You can use the tool entirely offline without it.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>What about non-TypeScript codebases?</summary>
-      <div class="body">
-        <p>Today it is TypeScript and JavaScript (via the TypeScript compiler API, so <code>.js</code>, <code>.ts</code>, <code>.tsx</code>, <code>.mjs</code> all work). The structure, naming, and dependencies passes are language-agnostic; the imports pass is the TS-specific one. Other languages are possible but not shipped.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>What if the proposal is wrong?</summary>
-      <div class="body">
-        <p>Edit <code>.domain-agents/proposal.json</code> before running <code>init</code>. Confidence scores and hotspot lists are there precisely so you can see where the analyser was uncertain. A bad proposal means <code>discover</code> needs another run — not that you're stuck with the output.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Do I need Claude Code to use this?</summary>
-      <div class="body">
-        <p>No. The core outputs — <code>agents/*.md</code> and <code>AGENTS.md</code> — are plain Markdown and useful on their own, including for human readers. The Claude Code and Cursor integrations are optional extras that make the files <em>load themselves</em> at the right moment inside those tools.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Does this replace architectural decision records?</summary>
-      <div class="body">
-        <p>No. Agent files are a living map; ADRs are frozen decisions. They complement each other. A well-run repo usually wants both — and the agent file is a good place to <em>link</em> to the relevant ADRs for each domain.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>How does it handle monorepos?</summary>
-      <div class="body">
-        <p>Point it at a package root. Each package can have its own proposal and its own <code>agents/</code> directory. A future version may discover across packages; today the unit is a single TypeScript project.</p>
-      </div>
-    </details>
+    <div class="accordion">
+      <details>
+        <summary>Does this only work for feature-organised codebases?</summary>
+        <div class="body">
+          <p>No. Feature-organised is the easy case, but the discovery engine was designed around the layered and mixed cases — because most real codebases are messy. The import graph and naming analysis carry the load when directories don't.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What does enrichment actually cost?</summary>
+        <div class="body">
+          <p>Enrichment reads key files from each domain and calls Claude to write the descriptive sections. Cost scales with the number of domains, not the size of the whole repo. Your API key stays at <code>~/.config/domain-agents/config.json</code> — never in the project directory.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What happens to files that don't belong to a domain?</summary>
+        <div class="body">
+          <p>They're flagged, not forced. Utility code often has no natural owner; the proposal lists unassigned files so you can either assign them, leave them floating, or wait until they grow into something worth owning.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does it support monorepos?</summary>
+        <div class="body">
+          <p>Path aliases and workspaces are read during the structure pass. Multi-package monorepo support — where each package is a domain or domains span packages — is an open area on the roadmap rather than a shipped feature.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How does it fit alongside <code>AGENTS.md</code> the open standard?</summary>
+        <div class="body">
+          <p>The generated <code>AGENTS.md</code> is plain Markdown and is consumed by any tool that reads the file at the repo root. The domain-specific agent files sit underneath it as linked context, so tools that don't understand domain structure still get a sensible top-level document.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Will it rewrite my code?</summary>
+        <div class="body">
+          <p>No. The tool writes Markdown, YAML frontmatter, and a small MCP server. It does not edit your application source. It's a <em>context producer</em>, not a refactor engine.</p>
+        </div>
+      </details>
+    </div>
   </section>
 
 </main>
 
 <footer class="site-footer">
   <div class="wrap">
-    <div>Built by <a href="https://jonno.nz" target="_blank" rel="noopener">John Gregoriadis</a> · engineering, ai, and the bits in between</div>
-    <div class="links">
-      <a href="https://github.com/jonnonz1/domain-agents" target="_blank" rel="noopener">github</a>
-      <a href="https://www.npmjs.com/package/domain-agents" target="_blank" rel="noopener">npm</a>
-      <a href="https://github.com/jonnonz1/domain-agents/blob/main/LICENSE" target="_blank" rel="noopener">mit</a>
+    <div>Built by <a href="https://jonno.nz">John Gregoriadis</a> · MIT licensed</div>
+    <div>
+      <a href="https://github.com/jonnonz1/domain-agents">Repository</a> ·
+      <a href="https://www.npmjs.com/package/domain-agents">npm</a> ·
+      <a href="#top">Top ↑</a>
     </div>
   </div>
 </footer>
