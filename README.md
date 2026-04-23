@@ -84,7 +84,7 @@ domain-agents init ./my-app --enrich
 ```
 
 This produces agent files with:
-- **Real purpose descriptions** based on actual code ("Manages journal entries with double-entry bookkeeping, multi-entity transfers, and GST calculations")
+- **Real purpose descriptions** based on actual code ("Manages order fulfilment with inventory holds, split shipments, and partial-cancellation flows")
 - **Accurate scaling stage** detection (finds queue usage, async patterns, etc.)
 - **Specific tech debt** from code analysis, not generic checklists
 - **Business domain rules** extracted from validation logic and invariants
@@ -123,15 +123,15 @@ middleware/auth.middleware.ts    ┘
 
 **Mixed / Next.js** (the real-world case):
 ```
-lib/services/journal/       ┐
-components/journals/        ├→ journals domain (52 files)
-hooks/use-manual-journals   │
-app/api/journals/           ┘
+lib/services/orders/        ┐
+components/orders/          ├→ orders domain (52 files)
+hooks/use-order-*           │
+app/api/orders/             ┘
 
-lib/services/bank-accounts/ ┐
-components/bank-accounts/   ├→ bank-accounts domain (59 files)
-hooks/use-bank-*            │
-app/api/bank-accounts/      ┘
+lib/services/subscriptions/ ┐
+components/subscriptions/   ├→ subscriptions domain (59 files)
+hooks/use-subscription-*    │
+app/api/subscriptions/      ┘
 ```
 
 ## Health Checks
