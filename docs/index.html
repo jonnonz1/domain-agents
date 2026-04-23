@@ -91,7 +91,7 @@
     align-items: baseline;
     gap: 0.45rem;
   }
-  .site-nav .brand .slash { color: var(--accent); }
+  .site-nav .brand .slash { color: var(--text-muted); }
   .site-nav .links {
     display: flex;
     gap: 1.35rem;
@@ -134,30 +134,27 @@
     gap: 0.75rem;
   }
   .mh-eyebrow .dot {
-    width: 6px; height: 6px;
+    width: 5px; height: 5px;
     border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 6px var(--accent);
-    animation: pulse 2.4s ease-in-out infinite;
+    background: var(--text-muted);
   }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
   .mh-eyebrow .sep { flex: 1; height: 1px; background: var(--border); }
 
   .masthead h1 {
     font-family: var(--font-serif);
-    font-weight: 300;
+    font-weight: 400;
     font-variation-settings: "opsz" 144;
-    font-size: clamp(2.3rem, 5vw, 3.8rem);
-    line-height: 1.05;
-    letter-spacing: -0.03em;
+    font-size: clamp(2.1rem, 4.5vw, 3.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
     color: var(--text-bright);
     text-wrap: balance;
     margin-bottom: 1.25rem;
     max-width: 40rem;
   }
   .masthead h1 em {
-    font-style: italic;
-    color: var(--accent);
+    font-style: normal;
+    color: inherit;
   }
   .masthead .dek {
     font-family: var(--font-text);
@@ -192,13 +189,13 @@
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
   .btn.primary {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
+    background: transparent;
+    color: var(--text-bright);
+    border-color: var(--text-bright);
   }
-  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--bg); }
-  .btn.ghost { background: transparent; color: var(--text-bright); border-color: var(--border-strong); }
-  .btn.ghost:hover { color: var(--accent); border-color: var(--accent); }
+  .btn.primary:hover { background: rgba(255,255,255,0.04); }
+  .btn.ghost { background: transparent; color: var(--text-muted); border-color: var(--border-strong); }
+  .btn.ghost:hover { color: var(--text-bright); border-color: var(--text-bright); }
 
   .mh-stats {
     display: flex;
@@ -248,7 +245,7 @@
     padding-bottom: 2px;
     letter-spacing: 0.04em;
   }
-  nav.toc a:hover { color: var(--text-bright); border-bottom-color: var(--accent); }
+  nav.toc a:hover { color: var(--text-bright); border-bottom-color: var(--text-muted); }
 
   section { margin: 0 0 4rem; }
 
@@ -265,22 +262,22 @@
   }
   .sb-num {
     font-size: 0.66rem;
-    color: var(--accent);
+    color: var(--text-muted);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     padding: 0.2rem 0.55rem;
-    border: 1px solid rgba(212, 168, 83, 0.3);
+    border: 1px solid var(--border-strong);
     border-radius: 0.15rem;
-    background: rgba(212, 168, 83, 0.04);
+    background: transparent;
   }
   .sb-label {
     font-family: var(--font-serif);
     font-weight: 400;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     color: var(--text-bright);
     letter-spacing: -0.015em;
   }
-  .sb-label em { font-style: italic; color: var(--accent); }
+  .sb-label em { font-style: normal; color: inherit; }
   .sb-hint {
     font-size: 0.68rem;
     color: var(--text-muted);
@@ -290,6 +287,7 @@
 
   /* ============ Typography ============ */
   p { margin: 0 0 1rem; color: var(--text); }
+  em { font-style: normal; color: inherit; }
   .lead { font-size: 1.05rem; color: var(--text); max-width: 48rem; }
   .muted { color: var(--text-muted); }
   .eyebrow {
@@ -303,17 +301,10 @@
   h3 {
     font-family: var(--font-serif);
     font-weight: 500;
-    font-style: italic;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     color: var(--text-bright);
     margin: 2rem 0 0.6rem;
-    line-height: 1.25;
-  }
-  h3::before {
-    content: '—';
-    color: var(--accent);
-    margin-right: 0.5rem;
-    opacity: 0.7;
+    line-height: 1.3;
   }
 
   code {
@@ -339,10 +330,10 @@
     line-height: 1.7;
     margin: 1rem 0;
   }
-  pre .c { color: var(--text-muted); font-style: italic; }
-  pre .k { color: var(--tag-color); }
-  pre .s { color: var(--accent); }
-  pre .n { color: var(--accent-hover); }
+  pre .c { color: var(--text-muted); }
+  pre .k { color: var(--text-bright); }
+  pre .s { color: var(--text); }
+  pre .n { color: var(--text-bright); }
 
   /* ============ Primitive grid ============ */
   .grid3 {
@@ -401,7 +392,7 @@
   .card p { font-size: 0.92rem; color: var(--text); margin-bottom: 0.7rem; }
   .card ul { margin: 0.6rem 0 0; padding-left: 1.1rem; font-size: 0.85rem; color: var(--text-muted); list-style: none; }
   .card ul li { margin-bottom: 0.3rem; position: relative; padding-left: 0.9rem; }
-  .card ul li::before { content: '▸'; position: absolute; left: 0; color: var(--accent); opacity: 0.6; font-size: 0.72em; }
+  .card ul li::before { content: '·'; position: absolute; left: 0.15rem; color: var(--text-muted); font-size: 1.1em; line-height: 1; }
 
   dl.meta {
     display: grid;
@@ -553,9 +544,9 @@
     width: 1.55rem;
     height: 1.55rem;
     border-radius: 50%;
-    background: rgba(212, 168, 83, 0.08);
-    border: 1px solid rgba(212, 168, 83, 0.35);
-    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
     font-family: var(--font-mono);
     font-size: 0.7rem;
     font-weight: 500;
@@ -575,9 +566,9 @@
 
   /* ============ Callouts ============ */
   .callout {
-    background: rgba(212, 168, 83, 0.04);
-    border: 1px solid rgba(212, 168, 83, 0.18);
-    border-left: 2px solid var(--accent);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--border-strong);
     padding: 0.95rem 1.1rem;
     border-radius: 0 0.25rem 0.25rem 0;
     margin: 1.25rem 0;
@@ -585,20 +576,12 @@
     color: var(--text);
   }
   .callout strong { color: var(--text-bright); font-weight: 500; }
-  .callout.note {
-    background: rgba(224, 122, 95, 0.05);
-    border-color: rgba(224, 122, 95, 0.2);
-    border-left-color: var(--danger);
-  }
-  .callout.teal {
-    background: rgba(126, 184, 168, 0.04);
-    border-color: rgba(126, 184, 168, 0.2);
-    border-left-color: var(--tag-color);
-  }
+  .callout.note,
+  .callout.teal,
   .callout.blue {
-    background: rgba(61, 123, 138, 0.05);
-    border-color: rgba(61, 123, 138, 0.22);
-    border-left-color: var(--eng-color);
+    background: rgba(255, 255, 255, 0.02);
+    border-color: var(--border);
+    border-left-color: var(--border-strong);
   }
 
   /* ============ Details / accordion ============ */
@@ -610,7 +593,7 @@
     margin-bottom: 0.5rem;
     transition: border-color 0.15s;
   }
-  details[open] { border-color: rgba(212, 168, 83, 0.3); }
+  details[open] { border-color: var(--border-strong); }
   summary {
     font-family: var(--font-serif);
     font-weight: 500;
@@ -628,7 +611,7 @@
     content: '+';
     font-family: var(--font-mono);
     font-size: 1.1rem;
-    color: var(--accent);
+    color: var(--text-muted);
     font-weight: 400;
     margin-left: 1rem;
   }
@@ -662,7 +645,7 @@
     color: var(--text-bright);
     margin-bottom: 0.2rem;
   }
-  .pattern h4 em { font-style: italic; color: var(--accent); }
+  .pattern h4 em { font-style: normal; color: inherit; }
   .pattern .sub {
     font-family: var(--font-mono);
     font-size: 0.66rem;
@@ -682,7 +665,7 @@
     margin-top: 0.8rem;
     font-family: var(--font-mono);
     font-size: 0.7rem;
-    color: var(--accent);
+    color: var(--text-muted);
     letter-spacing: 0.04em;
   }
   .pattern .result::before { content: '→ '; opacity: 0.7; }
@@ -747,16 +730,15 @@
   }
   .integ-card h4 {
     font-family: var(--font-serif);
-    font-weight: 400;
-    font-style: italic;
-    font-size: 1.2rem;
+    font-weight: 500;
+    font-size: 1.15rem;
     color: var(--text-bright);
     margin: 0;
   }
   .integ-card p { font-size: 0.95rem; color: var(--text); }
   .integ-card ul { margin: 0.7rem 0 0; padding-left: 0; font-size: 0.88rem; color: var(--text); list-style: none; }
   .integ-card ul li { margin-bottom: 0.4rem; padding-left: 1rem; position: relative; }
-  .integ-card ul li::before { content: '▸'; position: absolute; left: 0; color: var(--accent); opacity: 0.6; font-size: 0.8em; }
+  .integ-card ul li::before { content: '·'; position: absolute; left: 0.1rem; color: var(--text-muted); font-size: 1.1em; line-height: 1; }
 
   /* ============ Footer ============ */
   footer.site-footer {
@@ -816,7 +798,7 @@
       <span>v0.1.4 · mit</span>
     </div>
 
-    <h1>Give AI the <em>map of your codebase</em> it never had.</h1>
+    <h1>Give AI the map of your codebase it never had.</h1>
     <p class="dek">A CLI that discovers the real business domains inside a TypeScript or Node codebase by static analysis, then writes the agent files your AI tools need to reason inside them. Boundaries, contracts, tech debt, scaling triggers — grounded in the code, not a whiteboard.</p>
 
     <div class="hero-actions">
