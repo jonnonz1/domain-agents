@@ -97,6 +97,31 @@
     .site-nav .links a:hover { color: var(--text-bright); }
     .muted { color: var(--text-muted); }
 
+    .irc {
+      margin: 1.5rem 0 0;
+      padding: 0.9rem 1rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.2rem;
+      background: rgba(255,255,255,0.01);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+    .irc .irc-head {
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 0.45rem;
+      margin-bottom: 0.55rem;
+    }
+    .irc .irc-chan { color: var(--text-bright); }
+    .irc .irc-nick { color: var(--text-muted); }
+    .irc .irc-msg { color: var(--text); }
+    .irc .irc-msg::before { content: '> '; color: var(--text-muted); }
+
     /* ============ Shell ============ */
     main.shell {
       max-width: var(--max-width); margin: 0 auto; width: 100%;
@@ -668,6 +693,11 @@
     </div>
     <div class="callout info">
       <strong>The bet.</strong> Context is not a prompt you retype. It is a file that loads itself. Every feature should either strengthen a boundary or surface a reason to move it — and the agents editing your code should see both, in the moment, without being asked.
+    </div>
+
+    <div class="irc" aria-label="The short version, as an IRC question">
+      <div class="irc-head"><span class="irc-chan">#architecture</span><span class="irc-nick">&lt;jonno&gt;</span></div>
+      <div class="irc-msg">has anyone actually tried generating an AGENTS.md per business domain straight from the import graph, so Claude Code / Cursor load the right context on glob match instead of you re-pasting it every prompt?</div>
     </div>
   </section>
 
